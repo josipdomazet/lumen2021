@@ -1,0 +1,467 @@
+---
+title: "EDA - part I"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+# EDA - Part I
+
+## Packages
+```{r}
+library("tidyverse")
+library("tidytext")
+library("scales")
+library("ggridges")
+theme_set(theme_bw())
+
+clean <- function(tbl) {
+  tbl %>% filter(cost_of_part > 0 &
+           invoiced_price > 0 &
+           gm <= 1 &
+           ordered_qty > 0 &
+           invoiced_qty_shipped > 0) 
+    
+}
+```
+
+## Data loading
+```{r}
+
+dat <- read.csv("./data/LUMEN_DS_corrected.csv",
+                header= TRUE,
+                stringsAsFactors = FALSE,
+                sep = "|",
+                quote = "\"",
+                encoding = "UCS-2LE",
+                fileEncoding =  "UCS-2LE",
+                colClasses = "character") 
+
+colnames(dat) <- c("manufacturing_region", "manufacturing_location_code",
+                   "intercompany", "customer_id", "customer_industry",
+                   "customer_region", "customer_first_invoice_date",
+                   "top_customer_group", "item_code", "product_family",
+                   "product_group", "price_last_modified_date_in_the_erp",
+                   "born_on_date", "make_vs_buy", "sales_channel_internal",
+                   "sales_channel_external", "sales_channel_grouping",
+                   "invoice_date", "invoice_num", "invoice_line_num",
+                   "order_date", "order_num", "order_line_num",
+                   "invoiced_qty_shipped", "ordered_qty", "invoiced_price",
+                   "invoiced_price_tx", "cost_of_part",
+                   "material_cost_of_part", "labor_cost_of_part", 
+                   "overhead_cost_of_part", "gm",
+                   "num_of_unique_products_on_a_quote")
+
+factor_colnames <- c("manufacturing_region",
+                     "manufacturing_location_code",
+                     "intercompany",
+                     "customer_id",
+                     "customer_industry",
+                     "customer_region",
+                     "top_customer_group",
+                     "item_code",
+                     "product_family",
+                     "product_group",
+                     "make_vs_buy",
+                     "sales_channel_internal",
+                     "sales_channel_external",
+                     "sales_channel_grouping",
+                     "invoice_num",
+                     "invoice_line_num",
+                     "order_num",
+                     "order_line_num")
+
+datetime_colnames <- c("price_last_modified_date_in_the_erp",
+                       "customer_first_invoice_date")
+
+date_colnames <- c("born_on_date",
+                   "invoice_date",
+                   "order_date")
+
+numeric_colnames <- colnames(dat)[!colnames(dat) %in% c(factor_colnames,
+                                                        datetime_colnames,
+                                                        date_colnames)]
+
+dat <- dat %>% 
+  mutate(across(everything(), ~na_if(., "NaN"))) %>%  
+  mutate(across(everything(),  ~na_if(., ""))) %>%
+  mutate(across(all_of(factor_colnames), as.factor),
+         across(all_of(numeric_colnames), as.numeric),
+         across(all_of(datetime_colnames), lubridate::date),
+         across(all_of(date_colnames), lubridate::ymd))
+
+# remove some columns
+dat <- dat %>% 
+  rename(sales_channel = sales_channel_internal) %>% 
+  select(c(-sales_channel_grouping, -sales_channel_external, -invoiced_price_tx))
+```
+
+The data is now loaded
+
+## Counting things
+
+First thing to do is to check how many unique users, items, man. regions, man. locations do we have
+
+```{r}
+dat %>% 
+  summarise(across(all_of(factor_colnames), ~ n_distinct(.))) %>% 
+  view("count distinct")
+```
+
+We have:
+- around 12k users
+- around 63k items
+- around 780k orders
+- around 1m invoices
+- 3 manufacturing regions
+- 31 manufacturing locations
+- 15 customer industries
+- 3 customer regions 
+- 3 product families
+- 32 product groups
+
+```{r}
+dat %>% 
+  slice_sample(prop = 0.01) %>% 
+  group_by(invoice_num) %>% 
+  summarise(n_orders = n_distinct(order_num)) %>%
+  view("Check are there invoices with multiple orders")
+```
+
+It turns out we have invoices with multiple orders.
+
+```{r}
+invoice_line_nums <- dat %>% pull(invoice_line_num)
+
+tabl <- data.frame(table(invoice_line_nums))
+tabl <- tabl %>% tibble()
+
+sus <- tabl %>% filter(Freq > 1) %>% pull(invoice_line_nums)
+
+dat_sus <- dat %>% filter(invoice_line_num %in% sus) 
+```
+
+### Manufacturing region
+```{r}
+plot_one_factor(dat, manufacturing_region) +
+  labs(
+    x = "Num. of rows",
+    y = "Manufacturing region",
+    title = "There are three known manufacturing regions"
+  ) 
+```
+
+
+
+### Manufacturing location code
+```{r}
+plot_one_factor(dat, manufacturing_location_code)
+```
+
+Now plot inside manufacturing region
+```{r}
+plot_outer_inner_factor(dat, manufacturing_region, manufacturing_location_code) +
+  labs(
+    x = "Num. of rows",
+    y = "Manufacturing location code",
+    title = "Manufacturing location codes by manufacturing regions"
+  ) -> man_loc_by_reg
+```
+
+### Customer industry
+```{r}
+plot_one_factor(dat, customer_industry) +
+  labs(
+    x = "Num. of rows",
+    y = "Customer Industry",
+    title = "Industry IC000 has the most rows in dataset"
+  )
+```
+
+### Customer region
+```{r}
+### Manufacturing region
+plot_one_factor(dat, customer_region) +
+  labs(
+    x = "Num. of rows",
+    y = "Customer region",
+    title = "There are three known manufacturing regions"
+  ) 
+```
+
+
+
+### Which users are most frequent? 
+
+```{r}
+n_orders_by_customer <- dat %>% 
+  group_by(customer_id, top_customer_group) %>% 
+  summarise(n_orders = n_distinct(order_num)) %>% 
+  ungroup()
+
+n_orders_by_customer %>% 
+  slice_max(n_orders, n = 100) %>% 
+  mutate(customer_id = fct_reorder(customer_id, n_orders)) %>% 
+  ggplot(aes(n_orders, customer_id, fill = top_customer_group)) +
+  geom_col() +
+  labs(
+    x = "Num. of orders",
+    y = "Customer ID"
+  ) + 
+  theme(axis.text.y = element_text(size = 5))
+```
+
+## Which users have multiple industries?
+```{r}
+n_industries_by_customer <- dat %>% 
+  group_by(customer_id, top_customer_group) %>% 
+  summarise(n_industries = n_distinct(customer_industry))
+  
+```
+
+
+
+## Correlations
+### Gross margin by customer industry
+```{r}
+  dat %>% 
+    group_by(customer_industry, top_customer_group) %>% 
+    filter(between(gm, 
+                   quantile(gm, 0.05, na.rm =TRUE),
+                   quantile(gm, 0.95, na.rm = TRUE)
+                   )
+           ) %>% 
+    ungroup() %>% 
+    mutate(customer_industry = fct_reorder(customer_industry, gm)) %>% 
+    ggplot(aes(x = customer_industry, gm, fill = top_customer_group)) +
+    geom_boxplot() + 
+    labs(
+      x = "Customer industry",
+      y = "Gross margin",
+      title = "Gross margin by customer industry",
+      subtitle = "Industry IC012 has highest median of gross margin"
+    ) + 
+    theme(legend.position = "bottom")
+  
+```
+
+#Product group
+```{r}
+plot_one_factor(dat, product_group)  +
+labs(
+x = "num. of rows",
+y = "Product groups",
+title = "Product group PC010 is in the highest number of rows",
+subtitle = "There are also many missing values (2nd highest value)"
+)
+```
+
+
+```{r}
+  dat %>% 
+    filter(between(gm, 
+                   quantile(gm, 0.05, na.rm =TRUE),
+                   quantile(gm, 0.95, na.rm = TRUE)
+                   )
+           ) %>% 
+    ungroup() %>% 
+    ggplot(aes(x = product_group, gm)) +
+    geom_boxplot()
+    
+  
+```
+
+## Cost components
+```{r}
+dat %>% 
+  select(gm, material_cost_of_part, labor_cost_of_part, overhead_cost_of_part) %>% 
+  pivot_longer(cols = c(ends_with("cost_of_part")), 
+  names_to = "cost_type",
+  values_to = "value"
+  ) %>% 
+  filter(between(gm, quantile(gm, 0.05, na.rm = TRUE), quantile(gm, 0.95, na.rm = TRUE))) %>% 
+  ggplot(aes(gm, value, fill = cost_type, color = cost_type)) +
+  geom_hex(alpha = 0.8) +
+  facet_wrap(~cost_type, scale = "free")
+```
+
+## Manufacturing regions <> Customer region
+```{r}
+dat %>% 
+  filter(cost_of_part > 0 &
+           invoiced_price > 0 &
+           gm <= 1 &
+           ordered_qty > 0 &
+           invoiced_qty_shipped > 0) %>% 
+  group_by(manufacturing_region, customer_region) %>% 
+  tally() %>% 
+  ungroup() %>% 
+  view("Manufacturing region - customer region")
+```
+
+## Correlations between price components
+
+```{r}
+dat %>% 
+  filter(cost_of_part > 0 &
+           invoiced_price > 0 &
+           gm <= 1 &
+           ordered_qty > 0 &
+           invoiced_qty_shipped > 0) %>% 
+  group_by(manufacturing_region, 
+           customer_region,
+           top_customer_group,
+           item_code) %>% 
+  filter(n() >= 100) %>% 
+  summarise(invoice_price_gm = cor(invoiced_price, gm, method = "spearman"),
+            invoice_price_cost_of_part = cor(invoiced_price, cost_of_part, method = "spearman"),
+            cost_of_part_gm = cor(cost_of_part, gm, method = "spearman")
+            ) %>% 
+  pivot_longer(cols = c(invoice_price_gm,
+                        invoice_price_cost_of_part,
+                        cost_of_part_gm
+                        )) %>% 
+  mutate(name = fct_reorder(name, -value)) %>% 
+  ggplot(aes(value, name, group = name)) +
+  geom_density_ridges() +
+  theme_grey()
+  
+  # geom_boxplot() +
+  # scale_x_discrete(labels = c("cost_of_part ~ gm",
+  #                             "invoice_price ~ cost_of_part",
+  #                             "invoice_price ~ gm")) +
+  # labs(
+  #   x = "Variable combination", 
+  #   y = "Spearman correlation",
+  #   title = "Spearman correlation for pairs of variables",
+  #   subtitle = "After grouping by man. region, customer region,
+  #   customer group and item code"
+  # )
+  
+```
+
+
+## Correlation between product groups
+
+```{r}
+
+means <-
+  dat %>% 
+    filter(cost_of_part > 0 &
+           invoiced_price > 0 &
+           gm <= 1 &
+           ordered_qty > 0 &
+           invoiced_qty_shipped > 0) %>% 
+  filter(customer_region == manufacturing_region) %>% 
+  filter(between(gm, quantile(gm, 0.05, na.rm = TRUE),
+                 quantile(gm, 0.95, na.rm = TRUE))) %>% 
+  group_by(customer_region) %>% 
+  summarise(gm = mean(gm, na.rm = TRUE))
+
+dat %>% 
+    filter(cost_of_part > 0 &
+           invoiced_price > 0 &
+           gm <= 1 &
+           ordered_qty > 0 &
+           invoiced_qty_shipped > 0) %>% 
+  filter(customer_region == manufacturing_region) %>% 
+  filter(between(gm, quantile(gm, 0.05, na.rm = TRUE),
+                 quantile(gm, 0.95, na.rm = TRUE))) %>% 
+    mutate(customer_region = fct_reorder(customer_region, -gm, mean)) %>% 
+  group_by(customer_region, top_customer_group, product_group) %>% 
+  ggplot(aes(top_customer_group, gm, fill = product_group)) +
+  geom_boxplot(alpha = 0.25) +
+  facet_wrap(~customer_region, ncol = 1) +
+  geom_hline(data = means, aes(yintercept = gm), size = 1,
+             linetype = 2,
+             color = "#EA060A") 
+  
+  
+```
+
+## 
+
+```{r}
+  dat %>% 
+    filter(cost_of_part > 0 &
+           invoiced_price > 0 &
+           gm <= 1 &
+           ordered_qty > 0 &
+           invoiced_qty_shipped > 0) %>% 
+  filter(customer_region == "Europe") %>% 
+  filter(item_code != "TRANSPORTKOSTEN") %>% 
+  mutate(item_code = fct_lump_n(item_code, 10, w = invoiced_qty_shipped)) %>% 
+  filter(item_code != "Other") %>% 
+  count(item_code, wt = invoiced_qty_shipped) %>% 
+  mutate(item_code = fct_reorder(item_code, n)) %>% 
+  ggplot(aes(n, item_code)) +
+    geom_col() +
+  labs(
+    x = "Total invoiced qty shipped",
+    y = "item code"
+  ) +
+  scale_x_continuous(labels = scales::comma)
+```
+
+## Extract top 10 items in Europe
+```{r}
+
+  dat %>% 
+    filter(cost_of_part > 0 &
+           invoiced_price > 0 &
+           gm <= 1 &
+           ordered_qty > 0 &
+           invoiced_qty_shipped > 0) %>% 
+  filter(customer_region == "Europe") %>% 
+  filter(item_code != "TRANSPORTKOSTEN") %>% 
+  mutate(item_code = fct_lump_n(item_code, 10, w = invoiced_qty_shipped)) %>% 
+  filter(item_code != "Other") %>% 
+  count(item_code, wt = invoiced_qty_shipped) -> top_10_items_europe
+
+```
+
+Check for top 10 items
+```{r}
+dat %>% 
+  clean() %>% 
+    filter(customer_region == "Europe") %>% 
+  filter(item_code %in% top_10_items_europe$item_code) %>% 
+  ggplot(aes(invoice_date, invoiced_price, color = item_code)) +
+  geom_point()
+```
+
+
+## Extract top 10 product gropus in Europe
+
+```{r}
+  dat %>% 
+    clean() %>% 
+  filter(customer_region == "Europe") %>% 
+  filter(item_code != "TRANSPORTKOSTEN") %>% 
+  mutate(product_group = fct_lump_n(product_group, 5, w = invoiced_qty_shipped)) %>% 
+    filter(product_group != "Other") %>% 
+  count(product_group, wt = invoiced_qty_shipped) -> top_product_groups_europe
+
+```
+
+```{r}
+dat %>% 
+  clean() %>% 
+    filter(customer_region == "Europe") %>% 
+  #filter(product_group %in% top_product_groups_europe$product_group) %>% 
+  #mutate(product_group = fct_relevel(product_group)) %>% 
+  mutate(product_group = fct_explicit_na(product_group)) %>% 
+  mutate(product_group = fct_reorder(product_group, invoiced_qty_shipped, function(x) sum(x, na.rm = TRUE))) %>% 
+  ggplot(aes(invoice_date, invoiced_price, color = product_group)) +
+  geom_point(alpha = 0.2) +
+  scale_y_log10(labels = scales::comma) +
+  facet_wrap(~product_group) +
+  labs(
+    x = "Invoice date",
+    y = "Invoice price",
+    title = "Europe's invoice price by product groups"
+  )
+```
+
+
