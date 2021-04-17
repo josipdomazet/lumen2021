@@ -1,28 +1,30 @@
 ---
-title: "EDA - part I"
+title: "EDA - Part I"
 output:
   html_document:
     df_print: paged
 editor_options:
   chunk_output_type: console
 ---
-# EDA - Part I
+
 
 ## Packages
 ```{r}
 library("tidyverse")
+library("lubridate")
 library("tidytext")
 library("scales")
 library("ggridges")
+library("ggrepel")
 theme_set(theme_bw())
 
 clean <- function(tbl) {
   tbl %>% filter(cost_of_part > 0 &
-           invoiced_price > 0 &
-           gm <= 1 &
-           ordered_qty > 0 &
-           invoiced_qty_shipped > 0) 
-    
+                   invoiced_price > 0 &
+                   gm <= 1 &
+                   ordered_qty > 0 &
+                   invoiced_qty_shipped > 0) 
+  
 }
 ```
 
@@ -217,7 +219,7 @@ n_orders_by_customer %>%
 n_industries_by_customer <- dat %>% 
   group_by(customer_id, top_customer_group) %>% 
   summarise(n_industries = n_distinct(customer_industry))
-  
+
 ```
 
 
@@ -225,51 +227,51 @@ n_industries_by_customer <- dat %>%
 ## Correlations
 ### Gross margin by customer industry
 ```{r}
-  dat %>% 
-    group_by(customer_industry, top_customer_group) %>% 
-    filter(between(gm, 
-                   quantile(gm, 0.05, na.rm =TRUE),
-                   quantile(gm, 0.95, na.rm = TRUE)
-                   )
-           ) %>% 
-    ungroup() %>% 
-    mutate(customer_industry = fct_reorder(customer_industry, gm)) %>% 
-    ggplot(aes(x = customer_industry, gm, fill = top_customer_group)) +
-    geom_boxplot() + 
-    labs(
-      x = "Customer industry",
-      y = "Gross margin",
-      title = "Gross margin by customer industry",
-      subtitle = "Industry IC012 has highest median of gross margin"
-    ) + 
-    theme(legend.position = "bottom")
-  
+dat %>% 
+  group_by(customer_industry, top_customer_group) %>% 
+  filter(between(gm, 
+                 quantile(gm, 0.05, na.rm =TRUE),
+                 quantile(gm, 0.95, na.rm = TRUE)
+  )
+  ) %>% 
+  ungroup() %>% 
+  mutate(customer_industry = fct_reorder(customer_industry, gm)) %>% 
+  ggplot(aes(x = customer_industry, gm, fill = top_customer_group)) +
+  geom_boxplot() + 
+  labs(
+    x = "Customer industry",
+    y = "Gross margin",
+    title = "Gross margin by customer industry",
+    subtitle = "Industry IC012 has highest median of gross margin"
+  ) + 
+  theme(legend.position = "bottom")
+
 ```
 
 #Product group
 ```{r}
 plot_one_factor(dat, product_group)  +
-labs(
-x = "num. of rows",
-y = "Product groups",
-title = "Product group PC010 is in the highest number of rows",
-subtitle = "There are also many missing values (2nd highest value)"
-)
+  labs(
+    x = "num. of rows",
+    y = "Product groups",
+    title = "Product group PC010 is in the highest number of rows",
+    subtitle = "There are also many missing values (2nd highest value)"
+  )
 ```
 
 
 ```{r}
-  dat %>% 
-    filter(between(gm, 
-                   quantile(gm, 0.05, na.rm =TRUE),
-                   quantile(gm, 0.95, na.rm = TRUE)
-                   )
-           ) %>% 
-    ungroup() %>% 
-    ggplot(aes(x = product_group, gm)) +
-    geom_boxplot()
-    
-  
+dat %>% 
+  filter(between(gm, 
+                 quantile(gm, 0.05, na.rm =TRUE),
+                 quantile(gm, 0.95, na.rm = TRUE)
+  )
+  ) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = product_group, gm)) +
+  geom_boxplot()
+
+
 ```
 
 ## Cost components
@@ -277,8 +279,8 @@ subtitle = "There are also many missing values (2nd highest value)"
 dat %>% 
   select(gm, material_cost_of_part, labor_cost_of_part, overhead_cost_of_part) %>% 
   pivot_longer(cols = c(ends_with("cost_of_part")), 
-  names_to = "cost_type",
-  values_to = "value"
+               names_to = "cost_type",
+               values_to = "value"
   ) %>% 
   filter(between(gm, quantile(gm, 0.05, na.rm = TRUE), quantile(gm, 0.95, na.rm = TRUE))) %>% 
   ggplot(aes(gm, value, fill = cost_type, color = cost_type)) +
@@ -300,7 +302,7 @@ dat %>%
   view("Manufacturing region - customer region")
 ```
 
-## Correlations between price components
+### Correlations between price components
 
 ```{r}
 dat %>% 
@@ -317,28 +319,28 @@ dat %>%
   summarise(invoice_price_gm = cor(invoiced_price, gm, method = "spearman"),
             invoice_price_cost_of_part = cor(invoiced_price, cost_of_part, method = "spearman"),
             cost_of_part_gm = cor(cost_of_part, gm, method = "spearman")
-            ) %>% 
+  ) %>% 
   pivot_longer(cols = c(invoice_price_gm,
                         invoice_price_cost_of_part,
                         cost_of_part_gm
-                        )) %>% 
+  )) %>% 
   mutate(name = fct_reorder(name, -value)) %>% 
   ggplot(aes(value, name, group = name)) +
   geom_density_ridges() +
   theme_grey()
-  
-  # geom_boxplot() +
-  # scale_x_discrete(labels = c("cost_of_part ~ gm",
-  #                             "invoice_price ~ cost_of_part",
-  #                             "invoice_price ~ gm")) +
-  # labs(
-  #   x = "Variable combination", 
-  #   y = "Spearman correlation",
-  #   title = "Spearman correlation for pairs of variables",
-  #   subtitle = "After grouping by man. region, customer region,
-  #   customer group and item code"
-  # )
-  
+
+# geom_boxplot() +
+# scale_x_discrete(labels = c("cost_of_part ~ gm",
+#                             "invoice_price ~ cost_of_part",
+#                             "invoice_price ~ gm")) +
+# labs(
+#   x = "Variable combination", 
+#   y = "Spearman correlation",
+#   title = "Spearman correlation for pairs of variables",
+#   subtitle = "After grouping by man. region, customer region,
+#   customer group and item code"
+# )
+
 ```
 
 
@@ -348,7 +350,7 @@ dat %>%
 
 means <-
   dat %>% 
-    filter(cost_of_part > 0 &
+  filter(cost_of_part > 0 &
            invoiced_price > 0 &
            gm <= 1 &
            ordered_qty > 0 &
@@ -360,7 +362,7 @@ means <-
   summarise(gm = mean(gm, na.rm = TRUE))
 
 dat %>% 
-    filter(cost_of_part > 0 &
+  filter(cost_of_part > 0 &
            invoiced_price > 0 &
            gm <= 1 &
            ordered_qty > 0 &
@@ -368,7 +370,7 @@ dat %>%
   filter(customer_region == manufacturing_region) %>% 
   filter(between(gm, quantile(gm, 0.05, na.rm = TRUE),
                  quantile(gm, 0.95, na.rm = TRUE))) %>% 
-    mutate(customer_region = fct_reorder(customer_region, -gm, mean)) %>% 
+  mutate(customer_region = fct_reorder(customer_region, -gm, mean)) %>% 
   group_by(customer_region, top_customer_group, product_group) %>% 
   ggplot(aes(top_customer_group, gm, fill = product_group)) +
   geom_boxplot(alpha = 0.25) +
@@ -376,15 +378,15 @@ dat %>%
   geom_hline(data = means, aes(yintercept = gm), size = 1,
              linetype = 2,
              color = "#EA060A") 
-  
-  
+
+
 ```
 
 ## 
 
 ```{r}
-  dat %>% 
-    filter(cost_of_part > 0 &
+dat %>% 
+  filter(cost_of_part > 0 &
            invoiced_price > 0 &
            gm <= 1 &
            ordered_qty > 0 &
@@ -396,7 +398,7 @@ dat %>%
   count(item_code, wt = invoiced_qty_shipped) %>% 
   mutate(item_code = fct_reorder(item_code, n)) %>% 
   ggplot(aes(n, item_code)) +
-    geom_col() +
+  geom_col() +
   labs(
     x = "Total invoiced qty shipped",
     y = "item code"
@@ -407,8 +409,8 @@ dat %>%
 ## Extract top 10 items in Europe
 ```{r}
 
-  dat %>% 
-    filter(cost_of_part > 0 &
+dat %>% 
+  filter(cost_of_part > 0 &
            invoiced_price > 0 &
            gm <= 1 &
            ordered_qty > 0 &
@@ -425,22 +427,23 @@ Check for top 10 items
 ```{r}
 dat %>% 
   clean() %>% 
-    filter(customer_region == "Europe") %>% 
+  filter(customer_region == "Europe") %>% 
   filter(item_code %in% top_10_items_europe$item_code) %>% 
   ggplot(aes(invoice_date, invoiced_price, color = item_code)) +
   geom_point()
 ```
 
 
-## Extract top 10 product gropus in Europe
+## Extract top 10 product groups in Europe
 
 ```{r}
-  dat %>% 
-    clean() %>% 
-  filter(customer_region == "Europe") %>% 
+dat %>% 
+  clean() %>% 
+  filter(customer_region == "Europe" &
+            manufacturing_region == "Europe") %>% 
   filter(item_code != "TRANSPORTKOSTEN") %>% 
   mutate(product_group = fct_lump_n(product_group, 5, w = invoiced_qty_shipped)) %>% 
-    filter(product_group != "Other") %>% 
+  filter(product_group != "Other") %>% 
   count(product_group, wt = invoiced_qty_shipped) -> top_product_groups_europe
 
 ```
@@ -448,13 +451,12 @@ dat %>%
 ```{r}
 dat %>% 
   clean() %>% 
-    filter(customer_region == "Europe") %>% 
-  #filter(product_group %in% top_product_groups_europe$product_group) %>% 
-  #mutate(product_group = fct_relevel(product_group)) %>% 
+  filter(customer_region == "Europe" & 
+           manufacturing_region == "Europe") %>% 
   mutate(product_group = fct_explicit_na(product_group)) %>% 
-  mutate(product_group = fct_reorder(product_group, invoiced_qty_shipped, function(x) sum(x, na.rm = TRUE))) %>% 
+  mutate(product_group = fct_reorder(product_group, -invoiced_qty_shipped, function(x) sum(x, na.rm = TRUE))) %>% 
   ggplot(aes(invoice_date, invoiced_price, color = product_group)) +
-  geom_point(alpha = 0.2) +
+  geom_point(alpha = 0.2, show.legend = FALSE) +
   scale_y_log10(labels = scales::comma) +
   facet_wrap(~product_group) +
   labs(
@@ -464,4 +466,51 @@ dat %>%
   )
 ```
 
+## Dates analysis
 
+
+### Born on date - median and mean
+I'll calculate median and mean born_on_date, but also median and mean of invoiced_price and gm.
+```{r}
+dat %>% 
+  clean() %>% 
+  mutate(product_group = fct_explicit_na(product_group)) %>% 
+  group_by(product_family, product_group) %>%
+  summarise(across(c(born_on_date, invoiced_price, gm),
+                   list(mean = ~ mean(., na.rm = TRUE),
+                        median = ~ median(., na.rm = TRUE))
+                   ),
+            n = n()
+            ) %>% 
+  ungroup() %>% 
+  ggplot(aes(born_on_date_median, gm_median, color = product_family)) +
+  geom_point(aes(size = n)) +
+  #geom_text_repel(aes(label = product_group), vjust = -1) +
+  labs(
+    x = "Median of born on date",
+    y = "Median of gross margin",
+    title = "Product groups with older median of born on date\n tend to have smaller median of gross margin"
+  ) +
+  scale_size_continuous(labels = scales::comma)
+```
+
+### Frequency of orders 
+
+The idea is to find how often do user make orders.
+```{r}
+order_date_by_customer <-
+  dat %>% 
+  clean() %>% 
+  group_by(customer_id, order_num) %>% 
+  summarise(order_date = min(order_date)) %>% 
+  filter(year(order_date) != 9999) %>% 
+  ungroup() %>% 
+  mutate(customer_id = fct_lump_n(customer_id, 25)) %>% 
+  filter(customer_id != "Other") 
+  
+order_date_by_customer %>% 
+  filter(year(order_date) >= 2017) %>% 
+  #filter(customer_id != 19244) %>% 
+  ggplot(aes(order_date, customer_id)) +
+  geom_point()
+```
