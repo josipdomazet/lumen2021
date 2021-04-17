@@ -525,7 +525,7 @@ order_date_by_customer %>%
          customer_industry,
          customer_region,
          top_customer_group) %>% 
-  select(order_date, order_num) %>% 
+  select(order_date, order_num, total_price) %>% 
   distinct() %>% 
   summarise(avg_diff = sum(difftime(order_date, 
                                     lag(order_date), 
@@ -533,7 +533,9 @@ order_date_by_customer %>%
                                     ),
                            na.rm = TRUE
                            ) / (n_distinct(order_date) - 1),
-            n_orders = n_distinct(order_num)
+            n_orders = n_distinct(order_num),
+            total_price_by_order = sum(total_price, na.rm = TRUE) / n_orders,
+            total_price = sum(total_price)
             ) %>% 
   mutate(avg_diff = as.numeric(avg_diff)) %>% 
   ungroup() -> avg_diff_order_date_customers
@@ -593,4 +595,21 @@ avg_diff_order_date_customers %>%
   scale_x_log10()
 ``` 
 
+Most expensive orders
+```{r}
+order_date_by_customer %>% 
+  slice_max(total_price, n = 100) %>% 
+  count(customer_region, top_customer_group) %>% 
+  ggplot(aes(n, top_customer_group)) +
+  geom_segment(aes(yend = top_customer_group, xend = 0)) +
+  geom_point(color = "orange", size = 2) +
+  facet_wrap(~ customer_region, nrow = 3) +
+  labs(
+    x = "Number of orders",
+    y = "Top customer group",
+    title = "10000 most expensive orders",
+    subtitle = "by customer region and top customer group"
+  )
+```
 
+Star users from Asia have a large share in top 100k most expensive orders.
