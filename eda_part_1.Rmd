@@ -522,10 +522,18 @@ order_date_by_customer %>%
 order_date_by_customer %>% 
   arrange(order_date) %>% 
   group_by(customer_id) %>% 
-  select(customer_id, order_date) %>% 
+  select(customer_id, order_date, order_num) %>% 
   distinct() %>% 
-  summarise(avg_diff = sum(difftime(order_date, lag(order_date), units = "days"),                                                     na.rm=TRUE) / (n() - 1)
-            ) -> avg_diff_order_date_customers
+  summarise(avg_diff = sum(difftime(order_date, 
+                                    lag(order_date), 
+                                    units = "days"
+                                    ),
+                           na.rm = TRUE
+                           ) / (n() - 1),
+            n_orders = n_distinct(order_num)
+            ) %>% 
+  mutate(avg_diff = as.numeric(avg_diff)) -> avg_diff_order_date_customers
+
 ```
  
 Split in equally sized bins
@@ -539,6 +547,13 @@ avg_diff_order_date_customers %>%
 Histogram of average diff for order date
 ```{r}
 avg_diff_order_date_customers %>% 
-  view()
+  filter(!is.na(avg_diff) & avg_diff > 0) %>% 
+  filter(n_orders > 0) %>% 
+  ggplot(aes(avg_diff)) +
+  geom_histogram() +
+  scale_x_log10(labels = scales::comma) +
+  labs(
+    x = "Average difference of two consecutive order dates in days"
+  )
 ```
 
