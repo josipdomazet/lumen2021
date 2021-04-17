@@ -511,8 +511,10 @@ order_date_by_customer <-
            order_num
            ) %>% 
   summarise(order_date = min(order_date),
-            total_price = sum(cost_of_part * invoiced_qty_shipped,
-                              na.rm = TRUE)
+            total_price = sum(invoiced_price * invoiced_qty_shipped,
+                              na.rm = TRUE),
+            total_qty = sum(invoiced_qty_shipped, na.rm = TRUE),
+            gm = min(gm)
             ) %>% 
   ungroup()  
 ```
@@ -525,7 +527,9 @@ order_date_by_customer %>%
          customer_industry,
          customer_region,
          top_customer_group) %>% 
-  select(order_date, order_num, total_price) %>% 
+  # data is already grouped by customer and order
+  # order has it's date, number, total_price, gm and total_qty of it's items
+  select(order_date, order_num, total_price, gm, total_qty) %>% 
   distinct() %>% 
   summarise(avg_diff = sum(difftime(order_date, 
                                     lag(order_date), 
@@ -535,7 +539,9 @@ order_date_by_customer %>%
                            ) / (n_distinct(order_date) - 1),
             n_orders = n_distinct(order_num),
             total_price_by_order = sum(total_price, na.rm = TRUE) / n_orders,
-            total_price = sum(total_price)
+            total_price = sum(total_price),
+            total_qty = sum(total_qty),
+            gm_by_order = sum(gm, na.rm = TRUE) / n_orders
             ) %>% 
   mutate(avg_diff = as.numeric(avg_diff)) %>% 
   ungroup() -> avg_diff_order_date_customers
@@ -613,3 +619,16 @@ order_date_by_customer %>%
 ```
 
 Star users from Asia have a large share in top 100k most expensive orders.
+
+Idea for scatterplot:
+do users with smaller avg. difference between two events spend more on orders?
+```{r}
+avg_diff_order_date_customers %>% 
+  filter(n_orders >= 10) %>% 
+  slice_sample(n = 100) %>% 
+  ggplot(aes(avg_diff, total_price_by_order)) +
+  geom_point() +
+  scale_x_log10() + 
+  scale_y_log10() 
+```
+
