@@ -66,9 +66,10 @@ factor_colnames <- c("manufacturing_region",
                      "product_family",
                      "product_group",
                      "make_vs_buy",
-                     "sales_channel_internal",
-                     "sales_channel_external",
-                     "sales_channel_grouping",
+                  #   "sales_channel_internal",
+                  #   "sales_channel_external",
+                  #   "sales_channel_grouping",
+                     "sales_channel",
                      "invoice_num",
                      "invoice_line_num",
                      "order_num",
@@ -494,23 +495,50 @@ dat %>%
   scale_size_continuous(labels = scales::comma)
 ```
 
-### Frequency of orders 
+
+### Calculating average difference in order dates
 
 The idea is to find how often do user make orders.
 ```{r}
 order_date_by_customer <-
   dat %>% 
   clean() %>% 
+  filter(year(order_date) != 9999) %>% 
   group_by(customer_id, order_num) %>% 
   summarise(order_date = min(order_date)) %>% 
-  filter(year(order_date) != 9999) %>% 
-  ungroup() %>% 
-  mutate(customer_id = fct_lump_n(customer_id, 25)) %>% 
-  filter(customer_id != "Other") 
-  
+  ungroup()  
+
+
+# plot order dates after 2017  
 order_date_by_customer %>% 
   filter(year(order_date) >= 2017) %>% 
   #filter(customer_id != 19244) %>% 
   ggplot(aes(order_date, customer_id)) +
   geom_point()
 ```
+
+
+```{r}
+order_date_by_customer %>% 
+  arrange(order_date) %>% 
+  group_by(customer_id) %>% 
+  select(customer_id, order_date) %>% 
+  distinct() %>% 
+  summarise(avg_diff = sum(difftime(order_date, lag(order_date), units = "days"),                                                     na.rm=TRUE) / (n() - 1)
+            ) -> avg_diff_order_date_customers
+```
+ 
+Split in equally sized bins
+```{r}
+avg_diff_order_date_customers %>% 
+  mutate(avg_diff = as.numeric(avg_diff)) %>% 
+  mutate(group = cut_number(avg_diff, n = 10)) %>% 
+  view("zanimljivo")
+```
+
+Histogram of average diff for order date
+```{r}
+avg_diff_order_date_customers %>% 
+  view()
+```
+
