@@ -503,23 +503,18 @@ The idea is to find how often do user make orders.
 order_date_by_customer <-
   dat %>% 
   clean() %>% 
-  filter(year(order_date) != 9999) %>% 
+  #filter(year(order_date) != 9999) %>% 
   group_by(customer_id, 
            customer_industry,
            customer_region,
            top_customer_group,
            order_num
            ) %>% 
-  summarise(order_date = min(order_date)) %>% 
+  summarise(order_date = min(order_date),
+            total_price = sum(cost_of_part * invoiced_qty_shipped,
+                              na.rm = TRUE)
+            ) %>% 
   ungroup()  
-
-
-# plot order dates after 2017  
-order_date_by_customer %>% 
-  filter(year(order_date) >= 2017) %>% 
-  #filter(customer_id != 19244) %>% 
-  ggplot(aes(order_date, customer_id)) +
-  geom_point()
 ```
 
 
@@ -570,20 +565,32 @@ Scatterplot: average diff for order date ~ number of orders
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(!is.na(avg_diff) & avg_diff > 0) %>%
-  filter(n_orders < 10000) %>% 
+  #filter(n_orders < 10000) %>% 
   ggplot(aes(n_orders, avg_diff)) +
-  geom_point()
+  geom_point(alpha = 0.5) + 
+  scale_x_log10(labels = scales::comma) +
+  scale_y_log10() +
+  stat_smooth(method = "lm") +
+  labs(
+    x = "Number of orders",
+    y = "Avg. time between two orders in days",
+    title = "Log-log regression",
+    subtitle = "Avg. time between two orders in days ~ Number of orders"
+  ) 
 ```
 
-Boxplot: number of orders per customer
+Idea for distribution: number of orders per customer
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(between(n_orders, 0, quantile(n_orders, 0.95))) %>% 
   ggplot(aes(n_orders)) +
   geom_density_ridges(aes(y = customer_region)) +
   labs(
-    x = "Number of orders"
-  )
-```
+    x = "Number of orders",
+    y = "Customer region",
+    title = "Distribution of number of orders per customer is right-skewed"
+  ) + 
+  scale_x_log10()
+``` 
 
 
