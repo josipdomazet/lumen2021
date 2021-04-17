@@ -26,6 +26,12 @@ clean <- function(tbl) {
                    invoiced_qty_shipped > 0) 
   
 }
+
+filter_percent <- function(tbl, var, percent) {
+  tbl %>% filter(between({{ var }},
+                         quantile({{ var }}, percent), 
+                         quantile({{ var  }}, 1 - percent)))
+}
 ```
 
 ## Data loading
@@ -503,7 +509,7 @@ The idea is to find how often do user make orders.
 order_date_by_customer <-
   dat %>% 
   clean() %>% 
-  #filter(year(order_date) != 9999) %>% 
+  filter(year(order_date) != 9999) %>% 
   group_by(customer_id, 
            customer_industry,
            customer_region,
@@ -541,7 +547,9 @@ order_date_by_customer %>%
             total_price_by_order = sum(total_price, na.rm = TRUE) / n_orders,
             total_price = sum(total_price),
             total_qty = sum(total_qty),
-            gm_by_order = sum(gm, na.rm = TRUE) / n_orders
+            gm_by_order = sum(gm, na.rm = TRUE) / n_orders,
+            min_order_date = min(order_date, na.rm = TRUE),
+            max_order_date = max(order_date, na.rm = TRUE)
             ) %>% 
   mutate(avg_diff = as.numeric(avg_diff)) %>% 
   ungroup() -> avg_diff_order_date_customers
@@ -625,10 +633,81 @@ do users with smaller avg. difference between two events spend more on orders?
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(n_orders >= 10) %>% 
-  slice_sample(n = 100) %>% 
-  ggplot(aes(avg_diff, total_price_by_order)) +
-  geom_point() +
-  scale_x_log10() + 
-  scale_y_log10() 
+  filter(!is.na(customer_region)) %>% 
+ # filter(between(gm_by_order, quantile(gm_by_order, 0.05), quantile(gm_by_order, 0.95))) %>% 
+  ggplot(aes(total_price, avg_diff)) +
+  geom_point(alpha = 0.1) +
+  scale_x_log10(labels = scales::comma) + 
+  scale_y_log10(labels = scales::comma) +
+  stat_smooth(method = "lm") +
+  labs(
+    x = "Total price of all orders",
+    y = "Avg. time between two orders in days",
+    title = "Users with smaller time between orders time\ntend to spend more on orders"
+  ) + 
+  facet_wrap(~ customer_region, nrow = 3)
 ```
+
+It's as expected: users with smaller time between order time tend to spend more 
+money on orders.
+Let's look 
+
+
+
+Idea:
+Star vs Other for avg diff for order date
+```{r}
+avg_diff_order_date_customers %>% 
+  ggplot(aes(avg_diff, fill = top_customer_group)) +
+  geom_histogram(aes(y = ..density..)) +
+  scale_x_log10() +
+  facet_wrap(~ top_customer_group) +
+  labs(
+    x = "Average difference in two consecutive orders in days",
+    fill = "Top customer groups",
+    title = "Difference between customer groups for avg. diff. in orders"
+       ) +
+  theme(legend.position = "bottom")
+  
+```
+
+Idea:
+boxplot for avg. diff. of orders by customer industries, faceted by 
+customer region
+```{r}
+avg_diff_order_date_customers %>% 
+  ggplot(aes(x = avg_diff)) +
+  geom_density_ridges(aes(y = customer_industry)) +
+  facet_wrap(~ customer_region)
+```
+
+Idea:
+avg time between orders 
+Hypothesis: Maybe more frequent customer get better deals?
+```{r}
+avg_diff_order_date_customers %>% 
+ # filter(n_orders >= 20) %>% 
+  #filter(max_order_date - min_order_date >= 100) %>% 
+  filter(!is.na(customer_region)) %>% 
+  filter(gm_by_order >= 0) %>% 
+  # filter(between(gm_by_order,
+  #                quantile(gm_by_order, 0.01),
+  #                quantile(gm_by_order, 0.99))) %>% 
+  ggplot(aes(gm_by_order, avg_diff)) +
+  geom_point(alpha = 0.3) + 
+  scale_y_log10() +
+  stat_smooth(method = "lm") +
+  facet_wrap(~ customer_industry)
+```
+
+Hypotheis:
+does user get better deal if he buys more?
+```{r}
+avg_diff_order_date_customers %>% 
+  filter(gm_by_order >= -1) %>% 
+  filter_percent(total_qty, 0.4) %>% 
+  ggplot(aes(gm_by_order, total_qty)) +
+  geom_point()
+```
+
 
