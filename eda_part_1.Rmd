@@ -504,7 +504,12 @@ order_date_by_customer <-
   dat %>% 
   clean() %>% 
   filter(year(order_date) != 9999) %>% 
-  group_by(customer_id, order_num) %>% 
+  group_by(customer_id, 
+           customer_industry,
+           customer_region,
+           top_customer_group,
+           order_num
+           ) %>% 
   summarise(order_date = min(order_date)) %>% 
   ungroup()  
 
@@ -521,28 +526,26 @@ order_date_by_customer %>%
 ```{r}
 order_date_by_customer %>% 
   arrange(order_date) %>% 
-  group_by(customer_id) %>% 
-  select(customer_id, order_date, order_num) %>% 
+  group_by(customer_id,
+         customer_industry,
+         customer_region,
+         top_customer_group) %>% 
+  select(order_date, order_num) %>% 
   distinct() %>% 
   summarise(avg_diff = sum(difftime(order_date, 
                                     lag(order_date), 
                                     units = "days"
                                     ),
                            na.rm = TRUE
-                           ) / (n() - 1),
+                           ) / (n_distinct(order_date) - 1),
             n_orders = n_distinct(order_num)
             ) %>% 
-  mutate(avg_diff = as.numeric(avg_diff)) -> avg_diff_order_date_customers
+  mutate(avg_diff = as.numeric(avg_diff)) %>% 
+  ungroup() -> avg_diff_order_date_customers
 
 ```
  
-Split in equally sized bins
-```{r}
-avg_diff_order_date_customers %>% 
-  mutate(avg_diff = as.numeric(avg_diff)) %>% 
-  mutate(group = cut_number(avg_diff, n = 10)) %>% 
-  view("zanimljivo")
-```
+
 
 Histogram of average diff for order date
 ```{r}
@@ -550,10 +553,37 @@ avg_diff_order_date_customers %>%
   filter(!is.na(avg_diff) & avg_diff > 0) %>% 
   filter(n_orders > 0) %>% 
   ggplot(aes(avg_diff)) +
-  geom_histogram() +
+  geom_density_ridges(aes(y = customer_region, fill = customer_region),
+                      alpha = 0.9) +
+  #geom_histogram(aes(fill = customer_region), alpha = 0.5) +
   scale_x_log10(labels = scales::comma) +
   labs(
-    x = "Average difference of two consecutive order dates in days"
+    title = "Average difference of two consecutive orders by customer regions",
+    x = "Num. of days",
+    y = "Customer region"
+  ) +
+  theme(legend.position = "none") +
+  facet_wrap(~ customer_industry)
+```
+
+Scatterplot: average diff for order date ~ number of orders
+```{r}
+avg_diff_order_date_customers %>% 
+  filter(!is.na(avg_diff) & avg_diff > 0) %>%
+  filter(n_orders < 10000) %>% 
+  ggplot(aes(n_orders, avg_diff)) +
+  geom_point()
+```
+
+Boxplot: number of orders per customer
+```{r}
+avg_diff_order_date_customers %>% 
+  filter(between(n_orders, 0, quantile(n_orders, 0.95))) %>% 
+  ggplot(aes(n_orders)) +
+  geom_density_ridges(aes(y = customer_region)) +
+  labs(
+    x = "Number of orders"
   )
 ```
+
 
