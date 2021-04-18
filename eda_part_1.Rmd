@@ -17,26 +17,10 @@ library("scales")
 library("ggridges")
 library("ggrepel")
 theme_set(theme_bw())
-
-clean <- function(tbl) {
-  tbl %>% filter(cost_of_part > 0 &
-                   invoiced_price > 0 &
-                   gm <= 1 &
-                   ordered_qty > 0 &
-                   invoiced_qty_shipped > 0) 
-  
-}
-
-filter_percent <- function(tbl, var, percent) {
-  tbl %>% filter(between({{ var }},
-                         quantile({{ var }}, percent), 
-                         quantile({{ var  }}, 1 - percent)))
-}
 ```
 
 ## Data loading
 ```{r}
-
 dat <- read.csv("./data/LUMEN_DS_corrected.csv",
                 header= TRUE,
                 stringsAsFactors = FALSE,
@@ -483,7 +467,10 @@ dat %>%
   clean() %>% 
   mutate(product_group = fct_explicit_na(product_group)) %>% 
   group_by(product_family, product_group) %>%
-  summarise(across(c(born_on_date, invoiced_price, gm),
+  summarise(across(c(born_on_date,
+                     invoiced_price, 
+                     
+                     gm),
                    list(mean = ~ mean(., na.rm = TRUE),
                         median = ~ median(., na.rm = TRUE))
                    ),
@@ -498,18 +485,31 @@ dat %>%
     y = "Median of gross margin",
     title = "Product groups with older median of born on date\n tend to have smaller median of gross margin"
   ) +
-  scale_size_continuous(labels = scales::comma)
+  scale_size_continuous(labels = scales::comma) +
+  guides(size = FALSE)
 ```
 
 
 ### Calculating average difference in order dates
 
 The idea is to find how often do user make orders.
+
+First I'll group by customer *and* order.
+For each order (**order_num**), I'll extract:
+- order date (**already on  order level**)
+- number of unique products (**already on order level**)
+- total order price
+- total quantity 
+- average unit cost price
+- average invoiced price
+- average gross margin 
+
+
 ```{r}
 order_date_by_customer <-
   dat %>% 
   clean() %>% 
-  filter(year(order_date) != 9999) %>% 
+  filter(year(order_date) != 9999) %>% # junk in data
   group_by(customer_id, 
            customer_industry,
            customer_region,
@@ -520,7 +520,10 @@ order_date_by_customer <-
             total_price = sum(invoiced_price * invoiced_qty_shipped,
                               na.rm = TRUE),
             total_qty = sum(invoiced_qty_shipped, na.rm = TRUE),
-            gm = min(gm)
+            mean_cost_of_part = mean(cost_of_part, na.rm = TRUE),
+            mean_invoice_price = mean(invoiced_price, na.rm = TRUE),
+            n_products = min(num_of_unique_products_on_a_quote, na.rm = TRUE), # on order level
+            gm = mean(gm, na.rm = TRUE)
             ) %>% 
   ungroup()  
 ```
@@ -579,6 +582,8 @@ avg_diff_order_date_customers %>%
 
 Scatterplot: average diff for order date ~ number of orders
 ```{r}
+tikz(file = "plot_test.tex", width = 5, height = 5)
+
 avg_diff_order_date_customers %>% 
   filter(!is.na(avg_diff) & avg_diff > 0) %>%
   #filter(n_orders < 10000) %>% 
@@ -592,21 +597,26 @@ avg_diff_order_date_customers %>%
     y = "Avg. time between two orders in days",
     title = "Log-log regression",
     subtitle = "Avg. time between two orders in days ~ Number of orders"
-  ) 
+  )  %>% print()
+dev.off()
 ```
 
 Idea for distribution: number of orders per customer
 ```{r}
+#tikz(file = "ridge_avg_diff_order.tex", width = 2.5, height = 2.5)
+
 avg_diff_order_date_customers %>% 
+  filter(!is.na(customer_region)) %>% 
   filter(between(n_orders, 0, quantile(n_orders, 0.95))) %>% 
   ggplot(aes(n_orders)) +
   geom_density_ridges(aes(y = customer_region)) +
   labs(
     x = "Number of orders",
-    y = "Customer region",
-    title = "Distribution of number of orders per customer is right-skewed"
+    y = NULL,
+    title = NULL
   ) + 
-  scale_x_log10()
+  scale_x_log10() 
+#dev.off()
 ``` 
 
 Most expensive orders
