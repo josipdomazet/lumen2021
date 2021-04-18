@@ -495,7 +495,7 @@ dat %>%
 The idea is to find how often do user make orders.
 
 First I'll group by customer *and* order.
-For each order (**order_num**), I'll extract:
+For each _order_ (**order_num**), I'll extract:
 - order date (**already on  order level**)
 - number of unique products (**already on order level**)
 - total order price
@@ -503,6 +503,7 @@ For each order (**order_num**), I'll extract:
 - average unit cost price
 - average invoiced price
 - average gross margin 
+- most frequent product group (questionable)
 
 
 ```{r}
@@ -522,13 +523,25 @@ order_date_by_customer <-
             total_qty = sum(invoiced_qty_shipped, na.rm = TRUE),
             mean_cost_of_part = mean(cost_of_part, na.rm = TRUE),
             mean_invoice_price = mean(invoiced_price, na.rm = TRUE),
-            n_products = min(num_of_unique_products_on_a_quote, na.rm = TRUE), # on order level
-            gm = mean(gm, na.rm = TRUE)
+            n_products = min(num_of_unique_products_on_a_quote, na.rm = TRUE),
+            mean_gm = mean(gm, na.rm = TRUE),
+            product_group = names(which.max(table(product_group)))
             ) %>% 
   ungroup()  
 ```
 
 
+Now I'll aggregate data only by customer.
+For each customer we'll know:
+- what was avg. difference between two orders
+- total number of orders
+- average gross margin 
+- average total price of orders
+- average cost of part for orders
+- average number of unique products on orders
+- the date of first order
+- the date of last order
+- most frequent product group
 ```{r}
 order_date_by_customer %>% 
   arrange(order_date) %>% 
@@ -537,9 +550,6 @@ order_date_by_customer %>%
          customer_region,
          top_customer_group) %>% 
   # data is already grouped by customer and order
-  # order has it's date, number, total_price, gm and total_qty of it's items
-  select(order_date, order_num, total_price, gm, total_qty) %>% 
-  distinct() %>% 
   summarise(avg_diff = sum(difftime(order_date, 
                                     lag(order_date), 
                                     units = "days"
@@ -547,12 +557,16 @@ order_date_by_customer %>%
                            na.rm = TRUE
                            ) / (n_distinct(order_date) - 1),
             n_orders = n_distinct(order_num),
-            total_price_by_order = sum(total_price, na.rm = TRUE) / n_orders,
+            mean_gm = mean(mean_gm, na.rm = TRUE),
+            mean_total_price = mean(total_price, na.rm = TRUE),
             total_price = sum(total_price),
-            total_qty = sum(total_qty),
-            gm_by_order = sum(gm, na.rm = TRUE) / n_orders,
+            mean_total_qty = mean(total_qty, na.rm = TRUE),
+            total_qty = sum(total_qty, na.rm = TRUE),
+            mean_cost_of_part = mean(mean_cost_of_part, na.rm = TRUE),
+            mean_n_product = mean(n_products, na.rm = TRUE),
             min_order_date = min(order_date, na.rm = TRUE),
-            max_order_date = max(order_date, na.rm = TRUE)
+            max_order_date = max(order_date, na.rm = TRUE),
+            product_group = names(which.max(table(product_group)))
             ) %>% 
   mutate(avg_diff = as.numeric(avg_diff)) %>% 
   ungroup() -> avg_diff_order_date_customers
@@ -567,7 +581,9 @@ avg_diff_order_date_customers %>%
   filter(!is.na(avg_diff) & avg_diff > 0) %>% 
   filter(n_orders > 0) %>% 
   ggplot(aes(avg_diff)) +
-  geom_density_ridges(aes(y = customer_region, fill = customer_region),
+  geom_density_ridges(stat = "binline",
+                      bins = 15,
+                      aes(y = customer_region, fill = customer_region),
                       alpha = 0.9) +
   #geom_histogram(aes(fill = customer_region), alpha = 0.5) +
   scale_x_log10(labels = scales::comma) +
@@ -577,8 +593,32 @@ avg_diff_order_date_customers %>%
     y = "Customer region"
   ) +
   theme(legend.position = "none") +
-  facet_wrap(~ customer_industry)
+  facet_wrap(~ customer_industry, nrow = 5)
 ```
+
+
+Check correlation of mean cost of part (how expensive parts do 
+customers order) and mean total quantity 
+```{r}
+
+avg_diff_order_date_customers %>% 
+  filter(!is.na(customer_region)) %>% 
+  #filter_percent(mean_gm, 0.2) %>% 
+  ggplot(aes(mean_total_qty, mean_cost_of_part)) +
+  geom_point(aes(color = customer_region), alpha = 0.5) + 
+  scale_y_log10(labels = scales::comma) +
+  scale_x_log10(labels = scales::comma) +
+  facet_wrap(~ customer_region) +
+  guides(color = FALSE) +
+  labs(
+    x = "mean total quantity",
+    y = "mean cost of part",
+    title = NULL
+  ) 
+
+```
+
+
 
 Scatterplot: average diff for order date ~ number of orders
 ```{r}
