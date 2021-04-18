@@ -23,3 +23,18 @@ plot_outer_inner_factor <- function(tbl, outer_var, inner_var) {
     scale_y_reordered() +
     guides(fill = FALSE)
 }
+
+clean <- function(tbl) {
+  tbl %>% filter(cost_of_part > 0 &
+                   invoiced_price > 0 &
+                   gm <= 1 &
+                   ordered_qty > 0 &
+                   invoiced_qty_shipped > 0) 
+  
+}
+
+filter_var_percent <- function(tbl, var, percent) {
+  tbl %>% filter(between({{ var }},
+                         quantile({{ var }}, percent), 
+                         quantile({{ var  }}, 1 - percent)))
+}
