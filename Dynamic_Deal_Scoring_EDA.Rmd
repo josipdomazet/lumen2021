@@ -125,6 +125,7 @@ invoiced_price_table_by_region <- function(region) {
     df %>%
         select(item_code, invoiced_price, customer_region) %>% 
         filter(!is.na(item_code) & customer_region == region) %>%
+        group_by(item_code) %>% 
         top_n(10, invoiced_price) %>% 
         arrange(desc(invoiced_price)) %>% 
         select(customer_region, item_code, invoiced_price) %>% kable
@@ -142,6 +143,7 @@ gm_barplot <- function(x_variable) {
     df %>% 
         select({{x_variable}}, gm) %>% 
         group_by({{x_variable}}) %>% 
+        filter(quantile(gm, 0.01, na.rm=T) < gm & gm < quantile(gm, 0.99, na.rm=T)) %>% 
         summarise(mean_gm=mean(gm, na.rm=T)) %>% 
         ggplot(aes(x={{x_variable}}, y=mean_gm), fill={{x_variable}}) +
             geom_bar(stat="identity", fill="forestgreen") + 
@@ -157,6 +159,7 @@ df %>%
     select(manufacturing_region, customer_region, gm) %>% 
     filter(!is.na(manufacturing_region) & !is.na(customer_region)) %>% 
     group_by(manufacturing_region, customer_region) %>% 
+    filter(quantile(gm, 0.01, na.rm=T) < gm & gm < quantile(gm, 0.99, na.rm=T)) %>% 
     summarise(mean_gm=mean(gm, na.rm=T)) %>% 
     mutate(manufacturer_customer=
                paste0(paste0(paste0("manufacturer=", manufacturing_region), "\n"),
@@ -170,6 +173,7 @@ df %>%
     select(manufacturing_region, customer_region, gm) %>% 
     filter(!is.na(manufacturing_region) & !is.na(customer_region)) %>% 
     group_by(manufacturing_region, customer_region) %>% 
+    filter(quantile(gm, 0.01, na.rm=T) < gm & gm < quantile(gm, 0.99, na.rm=T)) %>% 
     summarise(mean_gm=mean(gm, na.rm=T)) %>% 
     mutate(manufacturer_customer=
                paste0(paste0(paste0("manufacturer=", manufacturing_region), "\n"),
