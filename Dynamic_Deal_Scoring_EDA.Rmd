@@ -1,0 +1,243 @@
+---
+title: "Dynamic Deal Scoring EDA"
+author: "Snoopy Quartet"
+date: "24 March 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(patchwork)
+library(gridExtra)
+library(Cairo)
+library(grid)
+library(zoo)
+library(purrr)
+library(xts)
+library(reshape2)
+library(imputeTS)
+library(RColorBrewer)
+library(kableExtra)
+```
+
+```{r}
+df <- read.csv("./dataset/LUMEN_DS.csv",                 
+               header=TRUE,
+               stringsAsFactors=FALSE,
+               sep="|",
+               quote="",
+               encoding="UCS-2LE",
+               fileEncoding="UCS-2LE")
+```
+
+```{r}
+df <- as.data.frame(sapply(df, function(x) gsub("\"", "", x)))
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+colnames(df) <- c("manufacturing_region", "manufacturing_location_code", "intercompany", "customer_id", "customer_industry", "customer_region", "customer_first_invoice_date", "top_customer_group", "item_code", "product_family", "product_group", "price_last_modified_date_in_the_erp", "born_on_date", "make_vs_buy", "sales_channel_internal", "sales_channel_external", "sales_channel_grouping", "invoice_date", "invoice_num", "invoice_line_num", "order_date", "order_num", "order_line_num", "invoiced_qty_shipped", "ordered_qty", "invoiced_price", "invoiced_price_tx", "cost_of_part", "material_cost_of_part", "labor_cost_of_part", "overhead_cost_of_part", "gm", "num_of_unique_products_on_a_quote")
+
+factor_cols <- c("manufacturing_region", "manufacturing_location_code", "intercompany", "customer_id", "customer_industry", "customer_region", "top_customer_group", "item_code", "product_family", "product_group", "make_vs_buy", "sales_channel_internal", "sales_channel_external", "sales_channel_grouping", "invoice_num", "invoice_line_num", "order_num", "order_line_num")
+
+date_cols <- c("born_on_date", "invoice_date", "order_date")
+datetime_cols <- c("customer_first_invoice_date", "price_last_modified_date_in_the_erp")
+
+numeric_cols <- c("invoiced_qty_shipped", "ordered_qty", "invoiced_price", "invoiced_price_tx", "cost_of_part", "material_cost_of_part", "labor_cost_of_part", "overhead_cost_of_part", "gm", "num_of_unique_products_on_a_quote")
+
+df <- df %>% 
+    mutate(across(everything(), ~na_if(., "NaN"))) %>% 
+    mutate(across(.fns = ~na_if(., ""))) %>%
+    mutate(across(all_of(factor_cols), as.factor),
+           across(all_of(date_cols), lubridate::ymd),
+           across(all_of(datetime_cols), lubridate::date),
+           across(all_of(numeric_cols), as.character),
+           across(all_of(numeric_cols), as.numeric))
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+glimpse(df)
+```
+## Order example
+```{r}
+df %>% filter(order_num == "577108")
+```
+
+## Number of unique products
+```{r}
+df %>% 
+    select(item_code) %>% 
+    unique %>% 
+    pull %>% 
+    length %>% 
+    print
+```
+
+## Unique regions
+```{r}
+regions <- df %>% select(customer_region) %>% filter(!is.na(customer_region)) %>% unique %>% pull
+```
+
+## 10 most sold products everywhere, 10 most sold products by customer region
+```{r}
+df %>%
+    select(item_code) %>% 
+    filter(!is.na(item_code)) %>%
+    count(item_code, sort=T) %>% 
+    top_n(10, n) %>% kable
+
+item_freq_table_by_region <- function(region) {
+    df %>%
+        select(item_code, customer_region) %>% 
+        filter(!is.na(item_code)) %>%
+        group_by(customer_region) %>% 
+        count(item_code, customer_region, sort=T) %>% 
+        top_n(10, n) %>% 
+        filter(customer_region == region) %>% kable
+}
+
+plots <- map(regions, function(region) item_freq_table_by_region(region))
+plots[[1]]
+plots[[2]]
+plots[[3]]
+```
+
+## 10 most expensive products with their invoice price everywhere, 10 most expensive products by customer region
+```{r}
+df %>%
+    select(item_code, invoiced_price) %>% 
+    filter(!is.na(item_code)) %>% 
+    top_n(10, invoiced_price) %>% 
+    arrange(desc(invoiced_price)) %>% kable
+
+invoiced_price_table_by_region <- function(region) {
+    df %>%
+        select(item_code, invoiced_price, customer_region) %>% 
+        filter(!is.na(item_code) & customer_region == region) %>%
+        top_n(10, invoiced_price) %>% 
+        arrange(desc(invoiced_price)) %>% 
+        select(customer_region, item_code, invoiced_price) %>% kable
+}
+
+plots <- map(regions, function(region) invoiced_price_table_by_region(region))
+plots[[1]]
+plots[[2]]
+plots[[3]]
+```
+
+## Relationship between manufacturing_region, customer_region and gm
+```{r}
+gm_barplot <- function(x_variable) {
+    df %>% 
+        select({{x_variable}}, gm) %>% 
+        group_by({{x_variable}}) %>% 
+        summarise(mean_gm=mean(gm, na.rm=T)) %>% 
+        ggplot(aes(x={{x_variable}}, y=mean_gm), fill={{x_variable}}) +
+            geom_bar(stat="identity", fill="forestgreen") + 
+            theme_bw()
+}
+
+gm_barplot(manufacturing_region)
+gm_barplot(customer_region)
+```
+
+```{r, warning=F}
+df %>% 
+    select(manufacturing_region, customer_region, gm) %>% 
+    filter(!is.na(manufacturing_region) & !is.na(customer_region)) %>% 
+    group_by(manufacturing_region, customer_region) %>% 
+    summarise(mean_gm=mean(gm, na.rm=T)) %>% 
+    mutate(manufacturer_customer=
+               paste0(paste0(paste0("manufacturer=", manufacturing_region), "\n"),
+                      paste0("customer=", customer_region))) %>% 
+    ggplot(aes(x=manufacturer_customer, y=mean_gm), fill=manufacturer_customer) +
+        geom_bar(stat="identity", fill="forestgreen") + 
+        theme_bw() +
+        theme(axis.text.x=element_text(angle=45, vjust=0.5, size=6))
+
+df %>% 
+    select(manufacturing_region, customer_region, gm) %>% 
+    filter(!is.na(manufacturing_region) & !is.na(customer_region)) %>% 
+    group_by(manufacturing_region, customer_region) %>% 
+    summarise(mean_gm=mean(gm, na.rm=T)) %>% 
+    mutate(manufacturer_customer=
+               paste0(paste0(paste0("manufacturer=", manufacturing_region), "\n"),
+                      paste0("customer=", customer_region))) %>% 
+    filter(manufacturer_customer != "manufacturer=Asia\ncustomer=Europe") -> df_filtered
+
+df_filtered %>%    
+    ggplot(aes(x=manufacturer_customer, y=mean_gm), fill=manufacturer_customer) +
+        geom_bar(stat="identity", fill="forestgreen") + 
+        theme_bw() +
+        theme(axis.text.x=element_text(angle=45, vjust=0.5, size=6)) + 
+        scale_y_continuous(breaks=seq(-4, 1, 0.2)) 
+```
+
+## Manufacturer-customer percentage relation, realtionship with make_vs_buy
+```{r}
+df %>% 
+    ggplot(aes(x=manufacturing_region, fill=customer_region)) +
+    geom_bar(position="fill", color="white") +
+    scale_fill_brewer(palette="Dark2") + 
+    theme_bw() + 
+    theme(axis.title = element_text(size = 15), 
+        legend.title = element_text(size= 15))
+
+df %>% 
+    ggplot(aes(x=manufacturing_region, fill=make_vs_buy)) +
+    geom_bar(position="fill", color="white") +
+    scale_fill_brewer(palette="Paired") + 
+    theme_bw() + 
+    theme(axis.title = element_text(size = 15), 
+        legend.title = element_text(size= 15))
+```
+
+## Invoice price distribution depending on manufactured_region and customer_region
+```{r}
+df %>% 
+    select(manufacturing_region, invoiced_price) %>% 
+    filter(!is.na(manufacturing_region)) %>% 
+        ggplot(aes(x=manufacturing_region, y=invoiced_price)) + 
+            geom_boxplot(aes(fill=manufacturing_region)) +
+            # scale_y_continuous(limits = c(0, 50)) +
+            theme_bw() +
+            theme(legend.position = "bottom", legend.title=element_blank())
+
+df %>% 
+    select(customer_region, invoiced_price) %>% 
+    filter(!is.na(customer_region)) %>% 
+        ggplot(aes(x=customer_region, y=invoiced_price)) + 
+            geom_boxplot(aes(fill=customer_region)) +
+            # scale_y_continuous(limits = c(0, 50)) +
+            theme_bw() +
+            theme(legend.position = "bottom", legend.title=element_blank())
+```
+
+```{r, eval=F, echo=F}
+df %>% 
+    select(invoice_date, gm) %>% 
+          tibble(date_roll=df$invoice_date,
+                 gm_roll=c(cumsum(df$gm[1:(50 - 1)]) / 1:(50 - 1), 
+                   rollapply(data=df$gm, width=50, FUN=mean, by=1))) -> filtered
+```
+
+```{r, eval=F, echo=F}
+filtered %>% 
+    ggplot(aes(x=as.Date(date_roll, origin='1970-01-01'), y=gm_roll)) +
+        geom_point(color="blue", alpha = 0.4) +
+        theme_bw() + 
+        theme(axis.text.x=element_text(angle=45, vjust=0.5, size=5)) + 
+        labs(x="Date", y="Gross Margin Rolling Mean") +
+        scale_x_date(date_breaks="1 month", labels=function(d) format(d, "%b %Y")) 
+```
