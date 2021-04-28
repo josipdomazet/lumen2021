@@ -30,6 +30,21 @@ dat <- read.csv("./data/LUMEN_DS_corrected.csv",
                 fileEncoding =  "UCS-2LE",
                 colClasses = "character") 
 
+original_colnames <- c("manufacturing_region", "manufacturing_location_code",
+                   "intercompany", "customer_id", "customer_industry",
+                   "customer_region", "customer_first_invoice_date",
+                   "top_customer_group", "item_code", "product_family",
+                   "product_group", "price_last_modified_date_in_the_erp",
+                   "born_on_date", "make_vs_buy", "sales_channel_internal",
+                   "sales_channel_external", "sales_channel_grouping",
+                   "invoice_date", "invoice_num", "invoice_line_num",
+                   "order_date", "order_num", "order_line_num",
+                   "invoiced_qty_shipped", "ordered_qty", "invoiced_price",
+                   "invoiced_price_tx", "cost_of_part",
+                   "material_cost_of_part", "labor_cost_of_part", 
+                   "overhead_cost_of_part", "gm",
+                   "num_of_unique_products_on_a_quote")
+
 colnames(dat) <- c("manufacturing_region", "manufacturing_location_code",
                    "intercompany", "customer_id", "customer_industry",
                    "customer_region", "customer_first_invoice_date",
@@ -108,11 +123,11 @@ We have:
 - around 780k orders
 - around 1m invoices
 - 3 manufacturing regions
-- 31 manufacturing locations
+- 29 manufacturing locations
 - 15 customer industries
 - 3 customer regions 
 - 3 product families
-- 32 product groups
+- 31 product groups
 
 ```{r}
 dat %>% 
@@ -573,9 +588,7 @@ order_date_by_customer %>%
 
 ```
  
-
-
-Histogram of average diff for order date
+###Histogram of average diff for order date
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(!is.na(avg_diff) & avg_diff > 0) %>% 
@@ -597,8 +610,7 @@ avg_diff_order_date_customers %>%
 ```
 
 
-Check correlation of mean cost of part (how expensive parts do 
-customers order) and mean total quantity 
+###Check correlation of mean cost of part (how expensive parts do  customers order) and mean total quantity 
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(!is.na(customer_region)) %>% 
@@ -616,7 +628,7 @@ avg_diff_order_date_customers %>%
   ) 
 ```
 
-Check correlation of customer_industry and gross margin
+###Check correlation of customer_industry and gross margin
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(!is.na(customer_industry)) %>% 
@@ -632,7 +644,7 @@ avg_diff_order_date_customers %>%
   
 ```
 
-Check correlation of customer industry and cost of part
+###Check correlation of customer industry and cost of part
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(!is.na(customer_industry)) %>% 
@@ -648,8 +660,8 @@ avg_diff_order_date_customers %>%
   
 ```
 
-**Hypothesis**
-Customers with higher gross margin buy less frequently.
+
+###Customers with higher gross margin buy less frequently.
 ```{r}
   avg_diff_order_date_customers %>% 
     drop_na() %>% 
@@ -665,7 +677,7 @@ Customers with higher gross margin buy less frequently.
 ```
 
 
-Scatterplot: average diff for order date ~ number of orders
+###Scatterplot: average diff for order date ~ number of orders
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(!is.na(avg_diff) & avg_diff > 0) %>%
@@ -683,7 +695,7 @@ avg_diff_order_date_customers %>%
   )  %>% print()
 ```
 
-Idea for distribution: number of orders per customer
+### Idea for distribution: number of orders per customer
 ```{r}
 #tikz(file = "ridge_avg_diff_order.tex", width = 2.5, height = 2.5)
 
@@ -701,7 +713,7 @@ avg_diff_order_date_customers %>%
 #dev.off()
 ``` 
 
-Most expensive orders
+### The most expensive orders
 ```{r}
 order_date_by_customer %>% 
   slice_max(total_price, n = 100) %>% 
@@ -720,8 +732,7 @@ order_date_by_customer %>%
 
 Star users from Asia have a large share in top 100k most expensive orders.
 
-Idea for scatterplot:
-do users with smaller avg. difference between two events spend more on orders?
+###Do users with smaller avg. difference between two events spend more on orders?
 ```{r}
 avg_diff_order_date_customers %>% 
   filter(n_orders >= 10) %>% 
@@ -743,11 +754,7 @@ avg_diff_order_date_customers %>%
 It's as expected: users with smaller time between order time tend to spend more 
 money on orders.
 Let's look 
-
-
-
-Idea:
-Star vs Other for avg diff for order date
+###Star vs Other for avg diff for order date
 ```{r}
 avg_diff_order_date_customers %>% 
   ggplot(aes(avg_diff, fill = top_customer_group)) +
@@ -763,9 +770,8 @@ avg_diff_order_date_customers %>%
   
 ```
 
-Idea:
-boxplot for avg. diff. of orders by customer industries, faceted by 
-customer region
+
+###boxplot for avg. diff. of orders by customer industries, faceted by customer region
 ```{r}
 avg_diff_order_date_customers %>% 
   ggplot(aes(x = avg_diff)) +
@@ -773,9 +779,8 @@ avg_diff_order_date_customers %>%
   facet_wrap(~ customer_region)
 ```
 
-Idea:
-avg time between orders 
-Hypothesis: Maybe more frequent customer get better deals?
+
+###Hypothesis: Maybe more frequent customer get better deals?
 ```{r}
 avg_diff_order_date_customers %>% 
  # filter(n_orders >= 20) %>% 
@@ -802,7 +807,7 @@ avg_diff_order_date_customers %>%
   geom_point()
 ```
 
-## Check change of gross margin / unit price for items by last changed
+### Check change of gross margin / unit price for items by last changed
 ```{r}
 dat %>% 
   clean() %>% 
@@ -818,4 +823,35 @@ dat %>%
   
 ```
 
+## Histogram of gross margin for product groups
+```{r}
+dat %>% 
+  clean() %>% 
+ filter(abs(gm) <= 10) %>%
+  ggplot(aes(gm)) +
+  geom_density_ridges(aes(y = product_group)) +
+  labs(
+    x = "gross margin"
+  ) 
+  #facet_wrap(~ product_group, scale = "free_y")
+```
 
+### Split gross margin for product groups in bins with eq observations
+
+```{r}
+dat %>% 
+  clean() %>% 
+  filter(product_group != "PC024") %>% 
+  #sample_frac(0.1) %>% 
+  group_by(product_group) %>% 
+  mutate(gm = cut_number(gm, 10)) %>% 
+  ungroup() %>% 
+  group_by(product_group, gm) %>% 
+  tally() %>% 
+  ungroup() %>% 
+  ggplot(aes(gm, n)) +
+  geom_col() +
+  facet_wrap(~ product_group, scale = "free")
+```
+
+### 
