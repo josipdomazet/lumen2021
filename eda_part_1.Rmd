@@ -162,8 +162,8 @@ customers_by_region_plot <-
   
 customers_by_region_plot %>% 
   ggsave(filename = "customers_by_region.pdf", 
-         width = 8,
-         height = 8,
+         width = 11,
+         height = 11,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -390,7 +390,7 @@ n_items_by_product_group_plot <-
   scale_x_continuous(minor_breaks = NULL,  labels =  scales::label_number_si()) 
 
 n_items_by_product_group_plot %>% 
-    ggsave(filename = "n_items_by_product_group_plot.pdf", 
+    ggsave(filename = "n_items_by_product_group.pdf", 
          width = 11,
          height = 11,
          units = "cm",
