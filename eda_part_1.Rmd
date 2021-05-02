@@ -365,6 +365,39 @@ n_order_lines_by_man_region_loc_plot %>%
          device = pdf)
 ```
 
+### Num. of distinct items by product group
+```{r}
+n_items_by_product_group_plot <-
+  dat %>% 
+  mutate(across(starts_with("product_"), ~ fct_explicit_na(.))) %>% 
+  filter(product_family != "PF000") %>% 
+  group_by(product_family, product_group) %>% 
+  summarise(n_items = n_distinct(item_code)) %>%  
+  ungroup() %>% 
+  mutate(product_family = fct_reorder(product_family,-n_items, sum)) %>% 
+  mutate(product_group = reorder_within(product_group,
+                                                      n_items,
+                                                      product_family)) %>% 
+  ggplot(aes(n_items, product_group, fill = product_family)) +
+  geom_col() +
+  scale_y_reordered() +
+  facet_wrap(~ product_family, scales = "free_y") +
+  guides(fill = FALSE) +
+  labs(
+    x = "Number of unique items",
+    y  = "Product group"
+  ) +
+  scale_x_continuous(minor_breaks = NULL,  labels =  scales::label_number_si()) 
+
+n_items_by_product_group_plot %>% 
+    ggsave(filename = "n_items_by_product_group_plot.pdf", 
+         width = 11,
+         height = 11,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
 
 We have:
 - around 12k users
