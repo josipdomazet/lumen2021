@@ -111,11 +111,201 @@ The data is now loaded
 
 First thing to do is to check how many unique users, items, man. regions, man. locations do we have
 
+### Invoice - order columns
 ```{r}
-dat %>% 
+invoice_order_columns_plot <-
+  dat %>% 
   summarise(across(all_of(factor_colnames), ~ n_distinct(.))) %>% 
-  view("count distinct")
+  pivot_longer(everything()) %>% 
+  filter(name %in% c("order_num", "invoice_num", "invoice_line_num", "order_line_num")) %>% 
+  mutate(name = fct_reorder(name, value)) %>% 
+  ggplot(aes(value, name)) +
+  geom_segment(aes(yend = name, xend = 0)) +
+  geom_point(size = 6) +
+  labs(
+    x = "Number of unique values",
+    y = "Column name"
+  ) +
+  scale_x_continuous(labels = scales::comma, breaks = seq(0, 1300000, 250000),
+                     minor_breaks = NULL) 
+
+invoice_order_columns_plot %>% 
+  ggsave(filename = "invoice_order_columns_plot.pdf",
+        width = 5,
+         height = 5,
+         dpi = 300,
+        device = pdf)
 ```
+
+### Customers by region
+```{r}
+customers_by_region_plot <-
+  dat %>% 
+  group_by(customer_region) %>% 
+  summarise(n_customers = n_distinct(customer_id)) %>% 
+  mutate(customer_region = fct_explicit_na(customer_region)) %>% 
+  mutate(customer_region = fct_reorder(customer_region, n_customers)) %>% 
+  ggplot(aes(n_customers, customer_region, fill = customer_region)) + 
+  geom_col(width = 0.5, show.legend = FALSE) +
+  labs(
+    x = "Number of customers",
+    y = "Customer region"
+  ) +
+  scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    )
+  )
+  
+customers_by_region_plot %>% 
+  ggsave(filename = "customers_by_region.pdf",
+         width = 5,
+         height = 5,
+         dpi = 300,
+         device = pdf)
+```
+
+### Customers by region + top_customer_group
+```{r}
+customers_by_region_star_other_plot <-
+  dat %>% 
+  filter(top_customer_group == "STAR") %>% 
+  group_by(customer_region) %>% 
+  summarise(n_customers = n_distinct(customer_id)) %>% 
+  ungroup() %>% 
+  mutate(customer_region = fct_explicit_na(customer_region)) %>%
+  mutate(customer_region = fct_expand(customer_region, "")) %>% 
+  mutate(customer_region = fct_reorder(customer_region, n_customers)) %>% 
+  ggplot(aes(n_customers, customer_region, fill = customer_region)) + 
+  geom_col(width = 0.5, show.legend = FALSE) +
+  labs(
+    x = "Number of customers",
+    y = "Customer region"
+  ) +
+   scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    )
+  )
+customers_by_region_star_other_plot %>% 
+  ggsave(filename = "customers_by_region_star.pdf", 
+         width = 5,
+         height = 5,
+         dpi = 300,
+         device = pdf)
+
+customers_by_region_other_plot <-
+  dat %>% 
+  filter(!is.na(customer_region)) %>% 
+  filter(top_customer_group == "OTHER") %>% 
+  group_by(customer_region) %>% 
+  summarise(n_customers = n_distinct(customer_id)) %>% 
+  ungroup() %>% 
+  mutate(customer_region = fct_explicit_na(customer_region)) %>% 
+  mutate(customer_region = fct_reorder(customer_region, n_customers)) %>% 
+  ggplot(aes(n_customers, customer_region, fill = customer_region)) + 
+  geom_col(width = 0.5, show.legend = FALSE) +
+  labs(
+    x = "Number of customers",
+    y = "Customer region"
+  ) +
+   scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    )
+  )
+customers_by_region_other_plot %>% 
+  ggsave(filename = "customers_by_region_other.pdf",
+         width = 5,
+         height = 5,
+         dpi = 300, device = pdf)
+```
+
+### Customers by customer industry
+```{r}
+customers_by_customer_industry_plot <-
+  dat %>% 
+  mutate(customer_industry = fct_explicit_na(customer_industry)) %>% 
+  group_by(customer_industry) %>% 
+  summarise(n_customers = n_distinct(customer_id)) %>% 
+  mutate(customer_industry = fct_reorder(customer_industry, n_customers)) %>% 
+  ggplot(aes(n_customers, customer_industry)) +
+  geom_segment(aes(yend = customer_industry, xend = 0)) +
+  geom_point(size = 4) +
+  labs(
+    x = "Number of customers",
+    y = "Customer industry"
+  )
+
+customers_by_customer_industry_plot %>% 
+  ggsave(filename = "customers_by_customer_industry.pdf", 
+         width = 5,
+         height = 5,
+         dpi = 300,
+         device = pdf)
+```
+
+### Customers segmented by firts invoice date 
+Maybe do binning ?
+```{r}
+
+```
+
+
+### Order item lines by manufacturing region
+```{r}
+  dat %>% 
+  mutate(across(starts_with("manufacturing"), ~ fct_explicit_na(.))) %>% 
+  group_by(manufacturing_region) %>% 
+  summarise(n_lines = n_distinct(order_line_num)) %>%  
+  ungroup() %>% 
+  arrange(-n_lines)
+```
+
+### Order item lines by manufacturing region and location
+```{r}
+n_order_lines_by_man_region_loc_plot <-
+  dat %>% 
+  mutate(across(starts_with("manufacturing"), ~ fct_explicit_na(.))) %>% 
+  group_by(manufacturing_region, manufacturing_location_code) %>% 
+  summarise(n_lines = n_distinct(order_line_num)) %>%  
+  ungroup() %>% 
+  mutate(manufacturing_region = fct_reorder(manufacturing_region,-n_lines, sum)) %>% 
+  mutate(manufacturing_location_code = reorder_within(manufacturing_location_code,
+                                                      n_lines,
+                                                      manufacturing_region)) %>% 
+  ggplot(aes(n_lines, manufacturing_location_code, fill = manufacturing_region)) +
+  geom_col() +
+  scale_y_reordered() +
+  facet_wrap(~ manufacturing_region, scales = "free_y") +
+  guides(fill = FALSE) +
+  labs(
+    x = "Number of order lines",
+    y  = "Manufacturing location code"
+  ) + 
+  scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    )
+  ) +
+  scale_x_continuous(minor_breaks = NULL)
+
+n_order_lines_by_man_region_loc_plot %>% 
+  ggsave(filename = "n_order_lines_by_man_region_loc.pdf",
+         width = 5,
+         height = 5,
+         dpi = 300,
+         device = pdf)
+```
+
 
 We have:
 - around 12k users
