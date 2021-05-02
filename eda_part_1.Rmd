@@ -130,11 +130,12 @@ invoice_order_columns_plot <-
                      minor_breaks = NULL) 
 
 invoice_order_columns_plot %>% 
-  ggsave(filename = "invoice_order_columns_plot.pdf",
-        width = 5,
-         height = 5,
+  ggsave(filename = "invoice_order_columns_plot.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
          dpi = 300,
-        device = pdf)
+         device = pdf)
 ```
 
 ### Customers by region
@@ -160,9 +161,10 @@ customers_by_region_plot <-
   )
   
 customers_by_region_plot %>% 
-  ggsave(filename = "customers_by_region.pdf",
-         width = 5,
-         height = 5,
+  ggsave(filename = "customers_by_region.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
          dpi = 300,
          device = pdf)
 ```
@@ -193,8 +195,9 @@ customers_by_region_star_other_plot <-
   )
 customers_by_region_star_other_plot %>% 
   ggsave(filename = "customers_by_region_star.pdf", 
-         width = 5,
-         height = 5,
+         width = 8,
+         height = 8,
+         units = "cm",
          dpi = 300,
          device = pdf)
 
@@ -221,10 +224,12 @@ customers_by_region_other_plot <-
     )
   )
 customers_by_region_other_plot %>% 
-  ggsave(filename = "customers_by_region_other.pdf",
-         width = 5,
-         height = 5,
-         dpi = 300, device = pdf)
+  ggsave(filename = "customers_by_region_other.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
 ```
 
 ### Customers by customer industry
@@ -245,16 +250,69 @@ customers_by_customer_industry_plot <-
 
 customers_by_customer_industry_plot %>% 
   ggsave(filename = "customers_by_customer_industry.pdf", 
-         width = 5,
-         height = 5,
+         width = 8,
+         height = 8,
+         units = "cm",
          dpi = 300,
          device = pdf)
 ```
 
-### Customers segmented by firts invoice date 
-Maybe do binning ?
+### Customers segmented by first invoice date 
+Raw histogram
 ```{r}
+dat %>% 
+  select(customer_id, customer_first_invoice_date) %>% 
+  distinct() %>% 
+  ggplot(aes(customer_first_invoice_date)) +
+  geom_histogram() + 
+  labs(
+    x = "First invoice date",
+    y = "Count"
+  )
 
+```
+
+Trunc to year
+```{r}
+customer_first_invoice_by_year_plot <-
+  dat %>% 
+  select(customer_id, customer_first_invoice_date) %>% 
+  distinct() %>% 
+  mutate(customer_first_invoice_date = year(customer_first_invoice_date)) %>% 
+  group_by(customer_first_invoice_date) %>% 
+  summarise(n_customers = n_distinct(customer_id)) %>% 
+  ggplot(aes(
+    customer_first_invoice_date, 
+    n_customers,
+    fill = customer_first_invoice_date %in% 2015:2020)) +
+  geom_col(show.legend = FALSE) +
+  labs(
+    x = "First invoice date",
+    y = "Count"
+  ) + 
+  scale_x_continuous(breaks = seq(1990, 2020, 2)) +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+
+customer_first_invoice_by_year_plot %>% 
+  ggsave(filename = "customer_first_invoice_by_year.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Cumsum (use arrange)
+```{r}
+dat %>% 
+  select(customer_id, customer_first_invoice_date) %>% 
+  distinct() %>% 
+  mutate(customer_first_invoice_date = year(customer_first_invoice_date)) %>% 
+  group_by(customer_first_invoice_date) %>% 
+  summarise(n_customers = n_distinct(customer_id)) %>% 
+  arrange(-customer_first_invoice_date) %>% 
+  mutate(percent = n_customers / sum(n_customers)) %>% 
+  mutate(percent_cumsum = cumsum(percent)) 
 ```
 
 
@@ -296,12 +354,13 @@ n_order_lines_by_man_region_loc_plot <-
                "(Missing)" = hue_pal()(4)[4]
     )
   ) +
-  scale_x_continuous(minor_breaks = NULL)
+  scale_x_continuous(minor_breaks = NULL,  labels =  scales::label_number_si()) 
 
 n_order_lines_by_man_region_loc_plot %>% 
-  ggsave(filename = "n_order_lines_by_man_region_loc.pdf",
-         width = 5,
-         height = 5,
+  ggsave(filename = "n_order_lines_by_man_region_loc.pdf", 
+         width = 11,
+         height = 11,
+         units = "cm",
          dpi = 300,
          device = pdf)
 ```
