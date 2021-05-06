@@ -14,12 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 This markdown is supposed to be run after eda_part_1.Rmd.
-I'll focus on a lot of different aspect.
-
-##Inconsistencies in data set
-The question: is the data set granularity invoice line?
-
- 
+It shows various column summaries with plots.
+##Dataset inconsistencies
 ```{r}
 dat %>% 
   filter(order_num == 1259712) %>% view()
@@ -32,18 +28,7 @@ dat %>%
 
 ```
 
-
-Group data set by order num and check whether number of unique product is equal
-to number of distinct order lines?
-```{r}
-dat %>% 
-  group_by(order_num, num_of_unique_products_on_a_quote) %>% 
-  summarise(n_order_lines = n_distinct(order_line_num),
-            n_item_code = n_distinct(item_code)) -> order_lines_by_order_num
-```
-
-
-Check if item line can have multiple products
+Check whether item line can have multiple products
 ```{r}
 sample <-
   dat %>%
@@ -77,22 +62,23 @@ when cleaning data, transport item is deleted since transport doesn't have
 manufacturing cost (cost_of_part == 0).
 
 ```{r}
-popular_items_plot <-
+{
   dat %>% 
-  count(item_code) %>% 
-  mutate(item_code = fct_reorder(item_code, n)) %>% 
-  slice_max(n, n = 50, with_ties = FALSE) %>% 
-  ggplot(aes(n, item_code)) +
-  geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
-  labs(
-    x = "Number of rows",
-    y = "Item code"
-  )
-  
-popular_items_plot %>% 
-    ggsave(filename = "popular_items.pdf", 
-         width = 15,
-         height = 15,
+    count(item_code) %>% 
+    mutate(item_code = fct_reorder(item_code, n)) %>% 
+    slice_max(n, n = 50, with_ties = FALSE) %>% 
+    ggplot(aes(n, item_code)) +
+    geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
+    labs(
+      x = "Number of rows",
+      y = "Item code"
+    ) +
+    theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+    ggsave(filename = "images/popular_items.pdf", 
+         width = 8,
+         height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -155,13 +141,6 @@ dat %>%
 The majority of PF000 items are without born_on_date which is another
 argument for statement that they are not really manufactured.
 
-```{r}
-dat %>% 
-  filter(product_family == "PF000") %>% 
-  ggplot(aes(invoiced_price,  fill = )) +
-  geom_histogram() +
-  scale_x_log10()
-```
 
 Group by item codes, find *median* price and show a histogram
 ```{r}
@@ -188,23 +167,23 @@ dat %>%
 
 ## make vs buy
 ```{r}
-make_vs_buy_plot <-
+{
   dat %>% 
-  count(make_vs_buy) %>% 
-  mutate(make_vs_buy = fct_explicit_na(make_vs_buy)) %>% 
-  mutate(make_vs_buy = fct_reorder(make_vs_buy, n)) %>% 
-  ggplot(aes(n, make_vs_buy)) +
-  geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
-  labs(
-    x = "Number of rows",
-    y = "Make vs buy"
-    )
-
-  
-make_vs_buy_plot %>% 
-    ggsave(filename = "images/make_vs_buy.pdf", 
-         width = 15,
-         height = 15,
+    count(make_vs_buy) %>% 
+    mutate(make_vs_buy = fct_explicit_na(make_vs_buy)) %>% 
+    mutate(make_vs_buy = fct_reorder(make_vs_buy, n)) %>% 
+    ggplot(aes(n, make_vs_buy)) +
+    geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
+    labs(
+      x = "Number of rows",
+      y = "Make vs buy"
+    ) +
+    theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "images/make_vs_buy.pdf", 
+         width = 8,
+         height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -212,7 +191,7 @@ make_vs_buy_plot %>%
 
 ## born-on-date
 ```{r}
-born_on_date_plot <- 
+{
   dat %>% 
   select(item_code, born_on_date) %>% 
   distinct() %>% 
@@ -223,12 +202,13 @@ born_on_date_plot <-
     x = "Born on date",
     y = "Number of rows"
   ) +
-  scale_x_date(date_breaks = "4 year", date_labels = "%Y")
-
-born_on_date_plot %>% 
-      ggsave(filename = "born_on_date.pdf", 
-         width = 15,
-         height = 15,
+  scale_x_date(date_breaks = "4 year", date_labels = "%Y") +
+  theme(text = element_text(size=6),
+  plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+      ggsave(filename = "images/born_on_date.pdf", 
+         width = 8,
+         height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -249,26 +229,27 @@ dat %>%
 
 # Price and quantity
 ```{r}
-price_raw_plot <-
+{
   dat %>% 
-  filter(invoiced_price > 0) %>% 
-  #filter(between(invoiced_price,
-   #              quantile(invoiced_price, 0.01, na.rm = TRUE),
+    filter(invoiced_price > 0) %>% 
+    #filter(between(invoiced_price,
+    #              quantile(invoiced_price, 0.01, na.rm = TRUE),
     #             quantile(invoiced_price, 0.99, na.rm = TRUE))
-     #    ) %>% 
-  ggplot(aes(invoiced_price)) +
-  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6) +
-  scale_x_continuous(labels = scales::label_number_si()) +
-  labs(
-    x = "Invoiced price",
-    y = "Number of rows"
-  ) +
-  scale_y_continuous(labels = scales::label_number_si())
-  
-price_raw_plot
-        ggsave(filename = "images/price_raw.pdf", 
-         width = 15,
-         height = 15,
+    #    ) %>% 
+    ggplot(aes(invoiced_price)) +
+    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6) +
+    scale_x_continuous(labels = scales::label_number_si()) +
+    labs(
+      x = "Invoiced price",
+      y = "Number of rows"
+    ) +
+    scale_y_continuous(labels = scales::label_number_si()) +
+    theme(text = element_text(size=6),
+         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "images/price_raw.pdf", 
+         width = 8,
+         height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -276,33 +257,34 @@ price_raw_plot
 
 Filter + outliers
 ```{r}
-price_filter_outliers_linear_plot <-
+{
   dat %>% 
-  filter(invoiced_price > 0) %>% 
-  filter(between(invoiced_price,
-               quantile(invoiced_price, 0.01, na.rm = TRUE),
-              quantile(invoiced_price, 0.99, na.rm = TRUE))
-     ) %>%
-  ggplot(aes(invoiced_price)) +
-  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6) +
-  scale_x_continuous(labels = scales::label_number_si()) +
-  labs(
-    x = "Invoiced price",
-    y = "Number of rows"
-  ) +
-  scale_y_continuous(labels = scales::label_number_si())
-  
-price_filter_outliers_linear_plot
+    filter(invoiced_price > 0) %>% 
+    filter(between(invoiced_price,
+                   quantile(invoiced_price, 0.01, na.rm = TRUE),
+                   quantile(invoiced_price, 0.99, na.rm = TRUE))
+    ) %>%
+    ggplot(aes(invoiced_price)) +
+    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6) +
+    scale_x_continuous(labels = scales::label_number_si()) +
+    labs(
+      x = "Invoiced price",
+      y = "Number of rows"
+    ) +
+    scale_y_continuous(labels = scales::label_number_si()) +
+    theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
         ggsave(filename = "images/price_filtered_linear.pdf", 
-         width = 15,
-         height = 15,
+         width = 8,
+         height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
 ```
 
 ```{r}
-price_filter_outliers_log_plot <-
+{
   dat %>% 
   filter(invoiced_price > 0) %>% 
   filter(between(invoiced_price,
@@ -316,12 +298,13 @@ price_filter_outliers_log_plot <-
     x = "Invoiced price",
     y = "Number of rows"
   ) +
-  scale_y_continuous(labels = scales::label_number_si())
-  
-price_filter_outliers_log_plot
+  scale_y_continuous(labels = scales::label_number_si()) +
+  theme(text = element_text(size=6),
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
         ggsave(filename = "images/price_filtered_log.pdf", 
-         width = 15,
-         height = 15,
+         width = 6,
+         height = 6,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -329,7 +312,7 @@ price_filter_outliers_log_plot
 
 ## Cost of part
 ```{r}
-cost_of_part_outliers_log_plot <-
+{
   dat %>% 
   filter(cost_of_part > 0) %>% 
   filter(between(cost_of_part,
@@ -343,12 +326,13 @@ cost_of_part_outliers_log_plot <-
     x = "cost_of_part",
     y = "Number of rows"
   ) +
-  scale_y_continuous(labels = scales::label_number_si())
-  
-cost_of_part_outliers_log_plot
+  scale_y_continuous(labels = scales::label_number_si()) +
+  theme(text = element_text(size=6),
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+  } %>% 
         ggsave(filename = "images/cost_of_part_filtered_log.pdf", 
-         width = 15,
-         height = 15,
+         width = 6,
+         height = 6,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -409,7 +393,7 @@ cost_of_part_outliers_log_plot
 ```
 
 ```{r}
-cost_components_ridge_plot <-
+{
   dat %>% 
   filter(if_all(ends_with("cost_of_part"), ~ . > 0)) %>% 
   filter(if_all(ends_with("cost_of_part"), ~ between(.,
@@ -423,12 +407,13 @@ cost_components_ridge_plot <-
   labs(
     x = "Value",
     y = "Cost component"
-  ) 
-  
-cost_components_ridge_plot %>% 
+  ) + 
+      theme(text = element_text(size=6),
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
         ggsave(filename = "images/cost_components_ridge.pdf", 
-         width = 15,
-         height = 15,
+         width = 8,
+         height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
