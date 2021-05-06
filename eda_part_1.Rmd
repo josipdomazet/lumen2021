@@ -241,8 +241,9 @@ customers_by_customer_industry_plot <-
   summarise(n_customers = n_distinct(customer_id)) %>% 
   mutate(customer_industry = fct_reorder(customer_industry, n_customers)) %>% 
   ggplot(aes(n_customers, customer_industry)) +
-  geom_segment(aes(yend = customer_industry, xend = 0)) +
-  geom_point(size = 4) +
+  #geom_segment(aes(yend = customer_industry, xend = 0)) +
+  #geom_point(size = 4) +
+  geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
   labs(
     x = "Number of customers",
     y = "Customer industry"
@@ -250,8 +251,8 @@ customers_by_customer_industry_plot <-
 
 customers_by_customer_industry_plot %>% 
   ggsave(filename = "customers_by_customer_industry.pdf", 
-         width = 8,
-         height = 8,
+         width = 14,
+         height = 14,
          units = "cm",
          dpi = 300,
          device = pdf)
