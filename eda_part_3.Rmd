@@ -1,0 +1,55 @@
+---
+title: "EDA - Part III"
+author: "Josip Domazet"
+date: "5/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Is cost of part changing?
+Check whether price components are changing
+I'll use one specific item_code
+```{r}
+dat %>% filter(item_code == 23254681) %>% view("spec")
+```
+
+Maybe for multiple items?
+```{r}
+dat %>% filter(item_code  %in% c("1291")) %>% 
+  ggplot(aes(invoice_date, cost_of_part)) +
+  geom_point(aes(size = invoiced_qty_shipped), color = "red", alpha = 0.2) +
+  geom_point(aes(invoice_date, invoiced_price), color = "blue")
+```
+we should remove invoiced_price == 0 because sometimes it's due to 
+internal company policies.
+But why is cost of part sometimes equal to zero? Is it also due to
+internal company policies? 
+Q: How can something be free to produce? 
+A: Check make_vs_buy. Column. It's buy.
+
+##Undefined gross margin 
+```{r}
+{
+dat %>% 
+  filter(invoiced_price == 0 | is.na(invoiced_price) | is.na(cost_of_part)) %>% 
+  nrow() } ==  {
+dat %>% 
+  filter(is.na(gm)) %>% 
+  nrow()
+  }
+```
+Gross margin is undefined in three cases (not mutually exclusive):
+1. invoiced_price == 0
+2. invoiced_price not defined
+3. cost_of_part not defined.
+
+
+##Negative gross margins
+```{r}
+
+```
+
+
