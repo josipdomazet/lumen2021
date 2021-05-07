@@ -61,12 +61,12 @@ dat %>%
   filter(is.na(gm)) %>% 
   count(item_code, sort = TRUE) %>% 
   mutate(item_code = fct_reorder(item_code, n)) %>% 
-  slice_max(n, n = 100) %>%  
+  slice_max(n, n = 50) %>%  
   ggplot(aes(n, item_code)) +
   geom_col()
 ```
 Top items with NA gross margin: by the number of rows:
-1. BOY485-NPI
+1. BOY485-NPI (free item?!?!?!?!?!?!?!?!?)
 2. /C
 3. TRANSPORTKOSTEN
 4. /LTI
@@ -126,25 +126,55 @@ dat %>%
 TRANSPORTKOSTEN has defined ordered quantities, but "/C" and "/LTI" don't.
 Furthermore, TRANSPORTKOSTEN has NA for make_vs_buy, while /C and /LTI have
 make_vs_buy as MANUFACTURED.
+## Gross margin greater than 1
+It doesn't make sense.
+Either:
+- negative cost_of_part (somebody paid the company to produce)
+- negative invoiced_price (the company paid someone to buy)
 
+Only 96 data set rows have gm greater than 1.
+0.074 promil
 
 ##Negative gross margins
+
+It happens when the invoiced price is far smaller than
+cost of part.
 
 8.6% of rows have negative gross margin.
 ```{r}
 dat %>% 
   filter(gm < 0) %>% 
-  ggplot(aes(cost_of_part, invoiced_price)) + 
+  mutate(shipped_bin = ggplot2::cut_number(invoiced_qty_shipped, n = 10)) %>% 
+  ggplot(aes(cost_of_part, invoiced_price, color = shipped_bin)) + 
   geom_point() +
   labs(
     x = "Cost of part",
-    y = "Invoiced price",
-    title = "Scatterplot for rows with gm < 0",
-    subtitle = "invoiced price ~ cost of part"
+    y = "Invoiced price"
   )
 
 # (cost_of_part, invoiced_price)
 # (65316.07, 65038)
 ```
 
+# Quantities
+
+```{r}
+dat %>% 
+  select(order_line_num, ordered_qty) %>% 
+  distinct() -> order_line_qty_distinct
+
+order_line_qty_distinct %>% 
+  filter(between(ordered_qty,
+                 quantile(ordered_qty, 0.01, na.rm = TRUE),
+                 quantile(ordered_qty, 0.99, na.rm = TRUE))) %>% 
+  ggplot(aes(ordered_qty)) +
+  geom_histogram() +
+  labs(
+    x = "Ordered quantity",
+    y = "Number of rows"
+  ) +
+    scale_x_log10(labels = scales::label_number_si()) +
+                     theme(text = element_text(size=6),
+                           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+```
 
