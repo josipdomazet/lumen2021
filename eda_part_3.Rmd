@@ -2,7 +2,11 @@
 title: "EDA - Part III"
 author: "Josip Domazet"
 date: "5/7/2021"
-output: html_document
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -42,14 +46,105 @@ dat %>%
   }
 ```
 Gross margin is undefined in three cases (not mutually exclusive):
-1. invoiced_price == 0
+1. invoiced_price == 0 
 2. invoiced_price not defined
-3. cost_of_part not defined.
+3. cost_of_part not defined. **possible transportation! ** 
+
+Let's check which items have undefined gross margins.
+Since we're segmenting rows into gross margin buckets, 
+having undefined gross margin is of no use for us.
+
+13923 items have at least one invoice line in which they
+don't have defined gross margin.
+```{r}
+dat %>% 
+  filter(is.na(gm)) %>% 
+  count(item_code, sort = TRUE) %>% 
+  mutate(item_code = fct_reorder(item_code, n)) %>% 
+  slice_max(n, n = 100) %>%  
+  ggplot(aes(n, item_code)) +
+  geom_col()
+```
+Top items with NA gross margin: by the number of rows:
+1. BOY485-NPI
+2. /C
+3. TRANSPORTKOSTEN
+4. /LTI
+5. SMSKID
+```{r}
+top_items_na_gm <- c("BOY485-NPI", "/C", "TRANSPORTKOSTEN",
+                     "/LTI", "SMSKID", "LGMC-000203",
+                     "LGSKID", "SAMPLE-MPCS", "SAMPLE-EACH",
+                     "BOY485-SAMPLES")
+```
+
+
+###Transportation items
+Items with biggest number of rows with undefined gross margin are
+candidates for transportation items.
+
+BOY385-NPI has 155916 rows. Almost all of them have invoiced_price equal to 0.
+TRASNPOSRTKOSTEN has 7947 rows. Only 1 didn't have invoiced price equal to 0.
+We can remove rows which don't have invoiced price equal to 0.
+```{r}
+dat %>% 
+  filter(item_code == "BOY485-NPI") %>% 
+  ggplot(aes(cost_of_part, invoiced_price)) +
+  geom_point() 
+```
+
+```{r}
+dat %>% 
+  filter(item_code == "TRANSPORTKOSTEN") %>% 
+  ggplot(aes(cost_of_part, invoiced_price)) +
+  geom_point()
+# one and only one row doesn't have invoiced_price equal to 0
+```
+
+```{r}
+dat %>% 
+    filter(item_code %in% top_items_na_gm) %>% 
+  group_by(item_code) %>%
+  summarise(total_rows = n(),
+            cost_of_part_na = sum(cost_of_part == 0 | is.na(cost_of_part)),
+            mean_cost_of_part = mean(cost_of_part, na.rm = TRUE),
+            pct_cost_of_part_na = cost_of_part_na / total_rows,
+            ordered_qty = sum(ordered_qty == 0 | is.na(ordered_qty)),
+            pct_ordered_qty_na = ordered_qty / total_rows,
+            make_vs_buy_na = sum(is.na(make_vs_buy)),
+            pct_make_vs_buy_na = make_vs_buy_na / total_rows,
+            born_on_date_na = sum(is.na(born_on_date)),
+            pct_born_on_date_na = born_on_date_na / total_rows,
+            product_group_na = sum(is.na(product_group)),
+            pct_product_group_by = product_group_na / total_rows
+            ) %>% 
+  arrange(desc(total_rows)) %>% 
+  select(item_code, total_rows, pct_cost_of_part_na, pct_ordered_qty_na,
+         pct_make_vs_buy_na, pct_born_on_date_na, pct_product_group_by)
+```
+
+TRANSPORTKOSTEN has defined ordered quantities, but "/C" and "/LTI" don't.
+Furthermore, TRANSPORTKOSTEN has NA for make_vs_buy, while /C and /LTI have
+make_vs_buy as MANUFACTURED.
 
 
 ##Negative gross margins
-```{r}
 
+8.6% of rows have negative gross margin.
+```{r}
+dat %>% 
+  filter(gm < 0) %>% 
+  ggplot(aes(cost_of_part, invoiced_price)) + 
+  geom_point() +
+  labs(
+    x = "Cost of part",
+    y = "Invoiced price",
+    title = "Scatterplot for rows with gm < 0",
+    subtitle = "invoiced price ~ cost of part"
+  )
+
+# (cost_of_part, invoiced_price)
+# (65316.07, 65038)
 ```
 
 
