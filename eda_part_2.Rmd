@@ -15,6 +15,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This markdown is supposed to be run after eda_part_1.Rmd.
 It shows various column summaries with plots.
+
+##Dataset structure 
+```{r}
+dat %>% 
+  count(order_num, invoice_num) %>% 
+  count(order_num) -> n_invoices_per_order
+```
+
+
 ##Dataset inconsistencies
 ```{r}
 dat %>% 
@@ -24,7 +33,19 @@ dat %>%
 
 # order_num == 4164713 1 product, 10 rows 
 
-# order_num == 731696 - order with 1 product (item_code), but 4 item lines which were fully shipped with 4 separate invoices
+# order_num == 731696 - order with 1 product (item_code), but 4 item lines which were fully shipped with 4 separate invoices,
+# completely same thing with 100205
+
+# order_num == 100165 has 1 item_code, but 3 item lines,
+# it's like the original order had two order lines with 
+# same quantity and item_code
+
+# item_code = 700627 doesn't have cost_of_part, only invoiced_price
+# i've checked it after finding row with gross margin = 1
+# TODO: check for items which have row with gross margin = 1
+# and analyze whether they always have that gm
+
+
 
 ```
 
@@ -197,7 +218,8 @@ dat %>%
   distinct() %>% 
   filter(born_on_date > ymd("1950-01-01")) %>% 
   ggplot(aes(born_on_date)) +
-  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, bins = 50) +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, bins = 50,
+                  size = .25, color = "black") +
   labs(
     x = "Born on date",
     y = "Number of rows"
@@ -237,7 +259,8 @@ dat %>%
     #             quantile(invoiced_price, 0.99, na.rm = TRUE))
     #    ) %>% 
     ggplot(aes(invoiced_price)) +
-    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6) +
+    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, 
+                    size = .25, color = "black") +
     scale_x_continuous(labels = scales::label_number_si()) +
     labs(
       x = "Invoiced price",
@@ -265,7 +288,8 @@ Filter + outliers
                    quantile(invoiced_price, 0.99, na.rm = TRUE))
     ) %>%
     ggplot(aes(invoiced_price)) +
-    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6) +
+    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, 
+                    size = .25, color = "black") +
     scale_x_continuous(labels = scales::label_number_si()) +
     labs(
       x = "Invoiced price",
@@ -292,7 +316,8 @@ Filter + outliers
               quantile(invoiced_price, 0.99, na.rm = TRUE))
      ) %>%
   ggplot(aes(invoiced_price)) +
-  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6) +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6,
+                 size = .25, color = "black") +
   scale_x_continuous(trans = scales::log10_trans(), labels = scales::label_number_si()) +
   labs(
     x = "Invoiced price",
@@ -408,8 +433,8 @@ Filter + outliers
     x = "Value",
     y = "Cost component"
   ) + 
-      theme(text = element_text(size=6),
-        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+    theme(text = element_text(size=6),
+         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
         ggsave(filename = "images/cost_components_ridge.pdf", 
          width = 8,
@@ -419,4 +444,25 @@ Filter + outliers
          device = pdf)
 ```
 
+## Gross margin
 
+Histogram
+```{r}
+dat %>% 
+  #filter(invoiced_price > 0) %>% 
+  filter(between(gm, 0, 1.00)) %>% 
+  # invoiced_price == 0 is mostly for transportation
+  # but cost_of_part == 0 makes no sense
+  ggplot(aes(gm)) +
+  geom_histogram(fill =hue_pal()(2)[2], alpha = 0.75,
+                 size = .25, color = "black") +
+  labs(
+    x = "Gross margin",
+    y = "Number of rows"
+  ) +
+    theme(text = element_text(size=6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+```
+
+It looks kinda normally distributed, except that we have 
+very big count at value of 1.00
