@@ -158,23 +158,115 @@ dat %>%
 
 # Quantities
 
+**linear scale**
 ```{r}
 dat %>% 
+  filter(!is.na(order_line_num)) %>% 
   select(order_line_num, ordered_qty) %>% 
   distinct() -> order_line_qty_distinct
+# perhaps some transportation items sometimes have ordered quantity equal to zero
+# and sometimes NA
 
+order_line_qty_distinct %>% 
+  mutate(qty_bin = case_when(
+    ordered_qty < 0 ~ "negative",
+    ordered_qty == 0 ~ "exactly zero",
+    ordered_qty > 0 & ordered_qty < 10 ~ "between 0 and 10",
+    between(ordered_qty, 10, 100) ~ "between 10 and 100",
+    between(ordered_qty, 100, 1000) ~ "between 100 and 1000",
+    ordered_qty > 1000 ~ "more than 1000"
+  )) %>% 
+  group_by(qty_bin) %>% 
+  tally() %>% 
+  mutate(n = 100*n / sum(n))
+
+```
+
+```{r}
+{
 order_line_qty_distinct %>% 
   filter(between(ordered_qty,
                  quantile(ordered_qty, 0.01, na.rm = TRUE),
                  quantile(ordered_qty, 0.99, na.rm = TRUE))) %>% 
   ggplot(aes(ordered_qty)) +
-  geom_histogram() +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6,
+                 size = .25, color = "black") +
   labs(
     x = "Ordered quantity",
-    y = "Number of rows"
+    y = "Number of order lines"
   ) +
-    scale_x_log10(labels = scales::label_number_si()) +
-                     theme(text = element_text(size=6),
-                           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+  scale_x_continuous(labels = scales::label_number_si()) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+   theme(text = element_text(size=6),
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+          ggsave(filename = "images/ordered_qty_1percent_linear.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
 ```
 
+**log scale**
+```{r}
+{
+order_line_qty_distinct %>% 
+  filter(ordered_qty > 0) %>% 
+  filter(between(ordered_qty,
+                 quantile(ordered_qty, 0.01, na.rm = TRUE),
+                 quantile(ordered_qty, 0.99, na.rm = TRUE))) %>% 
+  ggplot(aes(ordered_qty)) +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6,
+                 size = .25, color = "black") +
+  labs(
+    x = "Ordered quantity",
+    y = "Number of order lines"
+  ) +
+  scale_x_continuous(
+    trans = scales::log10_trans(),
+    labels = scales::label_number_si(),
+    breaks = 1:10) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+   theme(text = element_text(size=6),
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+          ggsave(filename = "images/ordered_qty_1percent_log.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+# Sales Channels
+```{r}
+dat %>% 
+  summarise(n_distinct(sales_channel))
+```
+Is there only one sales channel by order?
+
+```{r}
+dat %>% 
+  select(order_num, sales_channel) %>% 
+  distinct() -> sales_channel_by_order
+```
+Sales channel is not by order, it's by invoice.
+
+```{r}
+dat %>% 
+  select(invoice_num, sales_channel) %>% 
+  distinct() -> sales_channel_by_invoice
+
+# sanity check
+nrow(sales_channel_by_invoice) == summarise(dat, n_distinct(invoice_num))
+```
+
+Check for the most common sales channels
+```{r}
+sales_channel_by_invoice %>%
+  count(sales_channel) -> sales_channel_count_by_invoice
+```
+
+
+# Intercompany
