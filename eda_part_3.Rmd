@@ -126,7 +126,7 @@ dat %>%
 TRANSPORTKOSTEN has defined ordered quantities, but "/C" and "/LTI" don't.
 Furthermore, TRANSPORTKOSTEN has NA for make_vs_buy, while /C and /LTI have
 make_vs_buy as MANUFACTURED.
-## Gross margin greater than 1
+##Gross margin greater than 1
 It doesn't make sense.
 Either:
 - negative cost_of_part (somebody paid the company to produce)
@@ -155,6 +155,19 @@ dat %>%
 # (cost_of_part, invoiced_price)
 # (65316.07, 65038)
 ```
+
+## Gross margin by customer region
+```{r}
+dat %>%
+  filter(between(gm, 0, 1)) %>% 
+  ggplot(aes(gm, customer_region)) +
+  geom_density_ridges() +
+  labs(
+    x = "Gross margin",
+    y = "Customer region"
+  ) 
+```
+
 
 # Quantities
 
@@ -270,3 +283,122 @@ sales_channel_by_invoice %>%
 
 
 # Intercompany
+
+Check by row count
+```{r}
+dat %>% 
+  count(intercompany)
+```
+
+Check by order count
+```{r}
+dat %>% 
+  select(order_num, intercompany) %>% 
+  distinct() -> intercompany_by_order
+```
+
+One order can be both intercompany and non-intercompany??
+```{r}
+dat %>%
+  filter(order_num == 725393) %>% glimpse
+```
+
+# VIP and NON-vip
+
+I'll try to find out same items for both vip and non-vip users
+and compare the prices
+```{r}
+vip_items <- dat %>% 
+  filter(top_customer_group == "STAR") %>% 
+  select(top_customer_group, item_code) %>% 
+  distinct()
+
+nonvip_items <- dat %>% 
+  filter(top_customer_group == "OTHER") %>% 
+  select(top_customer_group, item_code) %>% 
+  distinct()
+
+```
+
+VIP items: 3709
+non-VIP items: 60046
+- - - - - - - - - -
+total items: 63020
+
+There are obviously overlapping items.
+
+```{r}
+bind_rows(vip_items, nonvip_items) %>% 
+  count(item_code) %>% 
+  filter(n > 1) %>% 
+  pull(item_code) -> overlapping_items
+```
+
+## Compare for overlapping items
+```{r}
+dat %>% 
+  filter(item_code %in% overlapping_items) %>% 
+  group_by(item_code, top_customer_group) %>% 
+  summarise(avg_shipped = mean(invoiced_qty_shipped, na.rm = TRUE),
+            invoiced_price = mean(invoiced_price, na.rm = TRUE)) ->
+compare_overlapping
+
+compare_overlapping %>% 
+  ggplot(aes(top_customer_group, avg_shipped)) +
+  geom_boxplot() +
+  scale_y_log10()
+
+compare_overlapping %>% 
+  ggplot(aes(top_customer_group, invoiced_price)) +
+  geom_boxplot() +
+  scale_y_log10()
+```
+
+On dataset level for all items
+```{r}
+dat %>% 
+  filter(invoiced_price > 0) %>% 
+  select(top_customer_group, order_line_num, item_code, ordered_qty,
+         invoiced_price) %>% 
+  distinct() -> all_items_top_customer_group
+
+all_items_top_customer_group %>% 
+  filter(between(invoiced_price, quantile(invoiced_price, 0.01, na.rm = TRUE),
+                 quantile(invoiced_price, 0.99, na.rm = TRUE))) %>% 
+  ggplot(aes(top_customer_group, invoiced_price, fill = top_customer_group)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_y_log10(labels = scales::label_number_si()) +
+  labs(
+    x = "Customer groups",
+    y = "Invoiced price"
+  ) 
+
+all_items_top_customer_group %>% 
+  filter(between(ordered_qty, quantile(ordered_qty, 0.01, na.rm = TRUE),
+                 quantile(ordered_qty, 0.99, na.rm = TRUE))) %>% 
+  ggplot(aes(top_customer_group, ordered_qty, fill = top_customer_group)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_y_log10(labels = scales::label_number_si()) +
+  labs(
+    x = "Customer groups",
+    y = "Ordered Quantity"
+  ) 
+```
+
+
+## Example of overlapping item 1002285
+This items has one STAR customer and another OTHER customer.
+```{r}
+dat %>%
+  filter(item_code == "1002285") %>% 
+  ggplot(aes(invoiced_price, cost_of_part, color = top_customer_group)) +
+  geom_point(aes(size = invoiced_qty_shipped), alpha = 0.5) +
+  xlim(0, 0.5) +
+  ylim(0, 0.1)
+```
+
+
+
+
+
+
