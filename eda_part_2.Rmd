@@ -446,9 +446,45 @@ Filter + outliers
 
 ## Gross margin
 
-Histogram
+Bin into bins with the same number of observation
 ```{r}
 dat %>% 
+  #filter(!is.na(gm)) %>% 
+  mutate(gm_bin = case_when(
+    gm < 0 ~ "negative",
+    between(gm, 0, 1) ~ "normal values",
+    between(gm, 1, +Inf) ~ "above 1",
+    TRUE ~ "NA"
+  )) %>% 
+  count(gm_bin) %>% 
+  mutate(gm_bin = factor(gm_bin, 
+                         levels = c("negative", "normal values", "above 1", "NA"))) %>% 
+  ggplot(aes(gm_bin, n, fill = gm_bin, color = gm_bin)) +
+  geom_segment(aes(xend = gm_bin, yend = 0)) +
+  geom_point(size = 2) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  labs(
+    x = "Gross margin bin",
+    y = "Number of rows"
+  ) +
+  scale_fill_manual(
+    values = c("negative" = hue_pal()(2)[1],
+               "normal values" = hue_pal()(2)[2],
+               "above 1" = hue_pal()(2)[1],
+               "NA" = hue_pal()(2)[1])
+  ) +
+    scale_color_manual(
+    values = c("negative" = hue_pal()(2)[1],
+               "normal values" = hue_pal()(2)[2],
+               "above 1" = hue_pal()(2)[1],
+               "NA" = hue_pal()(2)[1])
+  )
+```
+
+
+Histogram
+```{r}
+{dat %>% 
   #filter(invoiced_price > 0) %>% 
   filter(between(gm, 0, 1.00)) %>% 
   # invoiced_price == 0 is mostly for transportation
@@ -462,7 +498,98 @@ dat %>%
   ) +
     theme(text = element_text(size=6),
           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+    ggsave(filename = "images/gm_between_0_1.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
 ```
 
 It looks kinda normally distributed, except that we have 
 very big count at value of 1.00
+```{r}
+{dat %>% 
+  filter(gm == 1) %>%
+  filter(between(invoiced_price, 
+                 quantile(invoiced_price, 0.1, na.rm = TRUE),
+                 quantile(invoiced_price, 0.9, na.rm = TRUE)
+  )
+  ) %>% 
+  ggplot(aes(invoiced_price)) +
+  geom_histogram(bins = 50,
+                 fill = hue_pal()(2)[2], alpha = 0.75,
+                 size = .25, color = "black") +
+  labs(
+    x = "Invoiced price",
+    y = "Number of rows"
+  ) +
+  theme(text = element_text(size=6),
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+          ggsave(filename = "images/rows_with_gm_1.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+
+##Ridge density of invoiced price for gross margin (5 bins)
+Boxplot/ridge density for gross margin binned into 
+bins spanning equal range
+This is with **linear scale**
+```{r}
+{dat %>% 
+    filter(between(gm, 0, 1)) %>% 
+    mutate(gm_bin = ggplot2::cut_interval(gm, n = 5)) %>% 
+    group_by(gm_bin) %>% 
+    filter(between(invoiced_price, 
+                   quantile(invoiced_price, 0.05, na.rm = TRUE),
+                   quantile(invoiced_price, 0.95, na.rm = TRUE))) %>% 
+                   ggplot(aes(invoiced_price, gm_bin)) +
+                     geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.75) +
+                     labs( 
+                       x = "Invoiced price",
+                       y = "Number of rows"
+                     ) +
+                     theme(text = element_text(size=6),
+                           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "images/prices_by_gm_bins_equal_interval_linear.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+This is for **log scale**
+```{r}
+{dat %>% 
+    filter(between(gm, 0, 1)) %>% 
+    mutate(gm_bin = ggplot2::cut_interval(gm, n = 5)) %>% 
+    group_by(gm_bin) %>% 
+    filter(between(invoiced_price, 
+                   quantile(invoiced_price, 0.05, na.rm = TRUE),
+                   quantile(invoiced_price, 0.95, na.rm = TRUE))) %>% 
+                   ggplot(aes(invoiced_price, gm_bin)) +
+                   geom_boxplot(fill = hue_pal()(2)[2]) +
+    scale_x_log10(labels = scales::label_number_si()) 
+                     geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.75) +
+                     labs( 
+                       x = "Invoiced price",
+                       y = "Number of rows"
+                     ) +
+    scale_x_log10(labels = scales::label_number_si()) +
+                     theme(text = element_text(size=6),
+                           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "images/prices_by_gm_bins_equal_interval_log.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)

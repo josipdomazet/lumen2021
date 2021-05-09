@@ -158,14 +158,131 @@ dat %>%
 
 ## Gross margin by customer region
 ```{r}
+{
 dat %>%
+  filter(!is.na(customer_region)) %>% 
   filter(between(gm, 0, 1)) %>% 
   ggplot(aes(gm, customer_region)) +
-  geom_density_ridges() +
+  geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.5) +
   labs(
     x = "Gross margin",
     y = "Customer region"
-  ) 
+  ) + 
+  theme(text = element_text(size = 6),
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+          ggsave(filename = "images/gm_by_customer_region_ridge.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+## Gross margin by product family
+```{r}
+{
+dat %>%
+  filter(!is.na(product_family)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  ggplot(aes(gm, product_family)) +
+  geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.5) +
+  labs(
+    x = "Gross margin",
+    y = "Customer region"
+  ) + 
+  theme(text = element_text(size = 6),
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")
+        )
+} %>% 
+          ggsave(filename = "images/gm_by_product_family_ridge.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+
+## Gross margin dependent on binned quantity
+```{r}
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(ordered_qty > 0) %>% 
+  mutate(qty_bin = case_when(
+    ordered_qty > 0 & ordered_qty < 10 ~ "between 0 and 10",
+    between(ordered_qty, 10, 100) ~ "between 10 and 100",
+    between(ordered_qty, 100, 1000) ~ "between 100 and 1000",
+    ordered_qty > 1000 ~ "more than 1000"
+  )) %>% 
+  ggplot(aes(qty_bin, gm)) +
+    geom_boxplot()
+```
+
+## Gross margin dependen on binned inovice price
+```{r}
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(invoiced_price > 0) %>% 
+  mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+  )) %>% 
+  ggplot(aes(price_bin, gm)) +
+    geom_boxplot() +
+  labs(
+    x = "Price bin"
+  )
+```
+
+### Cost of part dependent on binned invoice price
+
+```{r}
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(invoiced_price > 0) %>% 
+  filter(between(cost_of_part,
+                 quantile(cost_of_part, 0.05, na.rm = TRUE),
+                 quantile(cost_of_part, 0.95, na.rm = TRUE))) %>% 
+  mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+  )) %>% 
+  ggplot(aes(price_bin, cost_of_part)) +
+    geom_boxplot() +
+  labs(
+    x = "Price bin",
+    y = "Cost of part"
+  )
+```
+
+**Note** There is a lot of expensive items (> 1000) which
+have cost of part equal to 0.
+
+### Price for items with cost of part equal to 0
+```{r}
+dat %>% 
+  filter(cost_of_part == 0) %>%
+  filter(between(invoiced_price,
+                 quantile(invoiced_price, 0.05, na.rm = TRUE),
+                 quantile(invoiced_price, 0.95, na.rm = TRUE))) %>% 
+  ggplot(aes(invoiced_price, fill = product_family)) +
+  geom_histogram(alpha = 0.2) +
+  scale_x_log10() + 
+  facet_wrap(~ product_family)
+
+dat %>% 
+  filter(cost_of_part > 0) %>%
+  filter(between(invoiced_price,
+                 quantile(invoiced_price, 0.05, na.rm = TRUE),
+                 quantile(invoiced_price, 0.95, na.rm = TRUE))) %>% 
+  ggplot(aes(invoiced_price)) +
+  geom_histogram() +
+  scale_x_log10()
 ```
 
 
