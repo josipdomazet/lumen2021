@@ -100,19 +100,20 @@ class SuperCHAID:
         
         while not current_node.is_terminal:
             variable = current_node.split.column
-            value = input_row[variable]
+            value = input_row[variable] if impute else self._get_value(input_row, variable)
 
             for child_id, child in current_node.children.items():
                 if value in child.choices:
                     current_node = child
                     break
             else:
-                if impute:
-                    max_child = max(current_node.children.values(), key=lambda c: len(c.df))
-                    max_value = max(max_child.choices, key=lambda v: sum(max_child.df[variable] == v))
-                    value = max_value
-                    imputed_pairs[variable] = value
-                    input_row[variable] = value
+                if not impute: break
+                
+                max_child = max(current_node.children.values(), key=lambda c: len(c.df))
+                max_value = max(max_child.choices, key=lambda v: sum(max_child.df[variable] == v))
+                value = max_value
+                imputed_pairs[variable] = value
+                input_row[variable] = value
             segment_pairs[variable] = value
 
         for segment in tree.segments:
@@ -172,7 +173,7 @@ class SuperCHAID:
         
     def _get_tree(self, input_row):
         if self.is_singleton:
-            tree = self.trees[SuperCHAID.SINGLETON_KEY]
+            tree = self.singleton
         else:
             key = []
             for supernode_feature in self.supernode_features:
@@ -187,5 +188,9 @@ class SuperCHAID:
         
     def _belongs_to_segment(self, input_row, segment):
         for key, values in segment.segment_pairs.items():
-            if input_row[key] not in values: return False
+            if self._get_value(input_row, key) not in values: return False
         return True
+        
+    def _get_value(self, input_row, key):
+        value = input_row[key]
+        return value if str(value) != "nan" else '<missing>'
