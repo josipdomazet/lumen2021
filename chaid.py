@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from graphviz import Digraph
 
 from CHAID import Tree
 
@@ -168,6 +169,7 @@ class SuperCHAID:
             new_df = df[filter].reset_index(drop=True)
             pairs = pairs.copy()
             pairs[variable] = values
+            child.value = ', '.join([str(v) for v in values])
             node.children[child.node_id] = self._rebuild(tree, new_df, pairs, child)
         return node
         
@@ -194,3 +196,52 @@ class SuperCHAID:
     def _get_value(self, input_row, key):
         value = input_row[key]
         return value if str(value) != "nan" else '<missing>'
+        
+        
+class SuperCHAIDVisualizer:
+
+    def __init__(self, super_tree, format="png",
+                 internal_color="#BBBB00", leaf_color="#008800",
+                 zero_entropy_color="#00CC00", problematic_color="#CC0000",
+                 edge_label_color="#0000BB"):
+        self.super_tree = super_tree
+        self.format = format
+        self.internal_color = internal_color
+        self.leaf_color = leaf_color
+        self.zero_entropy_color = zero_entropy_color
+        self.problematic_color = problematic_color
+        self.edge_label_color = edge_label_color
+        self.dot = None
+    
+    def export(self, path):
+        for i, (supernode_values, tree) in enumerate(self.super_tree.trees.items()):
+            self.dot = Digraph(format=self.format)
+            self._traverse(tree, tree.root)
+            self.dot.render(f"{path}-{i+1}")
+        
+    def _adapt_segment_str(self, segment):
+        cutoffs = ', '.join(f"{v:.3f}" for v in segment.gm_cutoffs)
+        return f"id:{segment.leaf['node']}, rows: {segment.rows_count}, cutoffs:\n{cutoffs}".replace(", ", "\n")
+        
+    def _adapt_node_str(self, node):
+        return f"id: {node.node_id}, feature: {node.split.column}, rows: {len(node.df)}".replace(", ", "\n")
+        
+    def _create_node(self, tree, node):
+        if node.is_terminal:
+            segment = [s for s in tree.segments if s.leaf['node'] == node.node_id][0]
+            color = self.problematic_color if segment.is_problematic else self.leaf_color
+            self.dot.node(str(node.node_id), self._adapt_segment_str(segment), style="filled", color=color)
+        else:
+            color = self.internal_color
+            self.dot.node(str(node.node_id), self._adapt_node_str(node), style="filled", color=color)
+        
+    def _create_edge(self, from_id, to_id, label):
+        self.dot.edge(str(from_id), str(to_id), label, fontcolor=self.edge_label_color)
+        
+    def _traverse(self, tree, node):
+        self._create_node(tree, node)
+        for child_id, child in node.children.items():
+            feature_value = child.value
+            self._create_node(tree, child)
+            self._create_edge(node.node_id, child.node_id, f"{feature_value}")
+            self._traverse(tree, child)

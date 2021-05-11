@@ -19,8 +19,8 @@ class Segment:
         return self.duplicates
         
     def __str__(self):
-        cutoffs = '; '.join(["{:.2f}".format(float(c)) for c in self.gm_cutoffs])
-        return f"id: {self.leaf.node_id}, rows: {self.leaf.rows_count}, feature: {self.leaf.feature_name}, cutoffs: [{cutoffs}], duplicates: {self.duplicates}, H == 0: {self.zero_entropy}"
+        cutoffs = ', '.join(["{:.2f}".format(float(c)) for c in self.gm_cutoffs])
+        return f"id: {self.leaf.node_id}, rows: {self.leaf.rows_count}, cutoffs:\n{cutoffs}, duplicates: {self.duplicates}, H == 0: {self.zero_entropy}"
 
 
 class Node:
