@@ -80,6 +80,7 @@ class SuperCHAID:
                 segment = Segment(leaf, supernode_pairs, segment_pairs, segment_df, gm_cutoffs)
                 tree.segments.append(segment)
                 
+            tree.root = self._rebuild(tree, supernode_df, {}, tree.tree_store[0])
             self.trees[supernode_values] = tree
             
             if self.verbose:
@@ -89,20 +90,36 @@ class SuperCHAID:
                 for segment in tree.segments:
                     print(f"    {segment}")
                 print()
-            
-    def predict(self, input_row):
-        if self.is_singleton:
-            tree = self.trees[SuperCHAID.SINGLETON_KEY]
-        else:
-            key = []
-            for supernode_feature in self.supernode_features:
-                key.append(input_row[supernode_feature])
-            tree = self.trees[tuple(key)]
-            
+
+    def predict(self, input_row, impute=True):
+        input_row = input_row.copy()
+        tree = self._get_tree(input_row)
+        segment_pairs = {}
+        imputed_pairs = {}
+        current_node = tree.root
+        
+        while not current_node.is_terminal:
+            variable = current_node.split.column
+            value = input_row[variable] if impute else self._get_value(input_row, variable)
+
+            for child_id, child in current_node.children.items():
+                if value in child.choices:
+                    current_node = child
+                    break
+            else:
+                if not impute: break
+                
+                max_child = max(current_node.children.values(), key=lambda c: len(c.df))
+                max_value = max(max_child.choices, key=lambda v: sum(max_child.df[variable] == v))
+                value = max_value
+                imputed_pairs[variable] = value
+                input_row[variable] = value
+            segment_pairs[variable] = value
+
         for segment in tree.segments:
             if self._belongs_to_segment(input_row, segment):
-                return segment
-
+                return segment, segment_pairs, imputed_pairs
+                
     @property
     def is_singleton(self):
         return len(self.supernode_features) == 0
@@ -136,13 +153,44 @@ class SuperCHAID:
           split_threshold=self.split_threshold,
           is_exhaustive=self.is_exhaustive
         )
+
+    def _rebuild(self, tree, df, pairs, node):
+        node.df = df
+        node.children = {}
+        node.pairs = pairs
+        
+        variable = node.split.column
+        for child in [c for c in tree.tree_store if c.parent == node.node_id]:
+            values = child.choices
+            filter = np.zeros(len(df), dtype=bool)
+            for value in values:
+                filter |= df[variable] == value
+            new_df = df[filter].reset_index(drop=True)
+            pairs = pairs.copy()
+            pairs[variable] = values
+            node.children[child.node_id] = self._rebuild(tree, new_df, pairs, child)
+        return node
+        
+    def _get_tree(self, input_row):
+        if self.is_singleton:
+            tree = self.singleton
+        else:
+            key = []
+            for supernode_feature in self.supernode_features:
+                key.append(input_row[supernode_feature])
+            tree = self.trees[tuple(key)]
+        return tree
         
     def _determine_gm_cutoffs(self, segment_df):
         segment_df_dependant_variable = segment_df[self.dependant_variable].sort_values()
         _, bins = pd.qcut(segment_df_dependant_variable, q=[0, .2, .4, .6, .8, 1], retbins=True, duplicates="drop")
         return bins
         
-    def _belongs_to_segment(self, input, segment):
+    def _belongs_to_segment(self, input_row, segment):
         for key, values in segment.segment_pairs.items():
-            if input[key] not in values: return False
+            if self._get_value(input_row, key) not in values: return False
         return True
+        
+    def _get_value(self, input_row, key):
+        value = input_row[key]
+        return value if str(value) != "nan" else '<missing>'

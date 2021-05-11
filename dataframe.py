@@ -14,7 +14,7 @@ DATASET_PATH = "./LUMEN_DS.csv"
 ENCODING = "UTF-16"
 SEPARATOR = "|"
 NA_VALUES = "NaN"
-ROWS_LIMIT = None  
+ROWS_LIMIT = None
 
 manufacturing_region = "manufacturing_region"
 manufacturing_location_code = "manufacturing_location_code"
