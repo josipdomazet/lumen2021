@@ -1,5 +1,5 @@
 from dataframe import *
-from chaid import SuperCHAID
+from chaid import SuperCHAID, SuperCHAIDVisualizer
 
 supernode_features = [manufacturing_region, product_family]
 features_list = [customer_region, intercompany, make_vs_buy]
@@ -7,6 +7,9 @@ dependant_variable = gm
 
 super_tree = SuperCHAID(supernode_features, features_list, dependant_variable)
 super_tree.fit(df)
+
+visualizer = SuperCHAIDVisualizer(super_tree)
+visualizer.export("tree")
 
 input_row = df.loc[0]
 input_row[make_vs_buy] = np.nan
