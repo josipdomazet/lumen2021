@@ -26,6 +26,7 @@ library(kableExtra)
 library(scales)
 library(grid)
 library(schoolmath)
+library(ggridges)
 ```
 
 ## Define quantile filtering function
@@ -91,9 +92,11 @@ df %>%
 
 NA_counts_df %>% 
     ggplot(aes(x=reorder(variable, -value), y=value, colour=variable)) +
-    geom_bar(stat="identity", color="blue", fill="white") + 
+    geom_bar(stat="identity", color="blue", fill="gray", alpha=0.5) + 
     theme_bw() + 
-    theme(axis.text.x=element_text(angle=90, vjust=0.5, size=6)) + 
+    theme(axis.text.x=element_text(angle=90, vjust=0.5, size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+          text=element_text(size=20)) + 
     labs(x="Column name", y="Missing values count") +
     scale_y_continuous(labels=comma_format(big.mark=",", decimal.mark = "."), breaks=seq(0, max(NA_counts_df$value) + 100000, 100000)) -> plot 
 
@@ -155,9 +158,91 @@ df %>% filter(invoiced_qty_shipped == 0) %>% select(item_code, customer_region) 
 df %>% select(make_vs_buy) %>% unique
 ```
 
-## Order example
+### Frequencies of different make vs buy categories in data set
+```{r}
+df %>% select(make_vs_buy) %>% drop_na )%>% table
+```
+
+### Are there any make vs buy categories that have undefined manufacturing region? Nope
+```{r}
+df %>% select(make_vs_buy, manufacturing_region) %>% filter(is.na(manufacturing_region)) %>% table
+```
+
+### Which item codes have make vs buy category equal to "BUY - INTERPLNT TRNS" or "BUY - CUST. SUPPLIED"?
+```{r}
+df %>% select(item_code, make_vs_buy) %>% filter(make_vs_buy == "BUY - INTERPLNT TRNS")
+df %>% select(item_code, make_vs_buy) %>% filter(make_vs_buy == "BUY - CUST. SUPPLIED")
+```
+
+### Distrubution of cost of part depending on make vs buy category before and after merging
+```{r}
+df %>% filter(!is.na(make_vs_buy)) -> df_before_merge
+
+make_vs_buy <- df %>% select(make_vs_buy) %>% drop_na %>% unique %>% pull
+make <- c("MANUFACTURED", "RAW MATERIAL", "FINISHED GOODS")
+buy <- make_vs_buy[!(make_vs_buy %in% make)]
+
+df_after_merge <- df_before_merge
+levels(df_after_merge$make_vs_buy) <- c(levels(df_after_merge$make_vs_buy), "MAKE")
+df_after_merge$make_vs_buy[df_after_merge$make_vs_buy %in% buy] <- "BUY"
+df_after_merge$make_vs_buy[df_after_merge$make_vs_buy != "BUY"] <- "MAKE"
+
+df_before_merge %>% 
+    filter(cost_of_part > 0.0) %>% 
+    ggplot(aes(cost_of_part)) +
+    geom_density_ridges(aes(y=make_vs_buy), color="steelblue", fill="#3F2D91", alpha=0.5) +
+    theme_bw() +
+    theme(
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+        text=element_text(size=20)) + 
+    scale_x_log10() + 
+    labs(x="Cost of part", y="Make vs buy") -> plot_1
+
+df_after_merge %>% 
+    filter(cost_of_part > 0.0) %>% 
+    ggplot(aes(cost_of_part)) +
+    geom_density_ridges(aes(y=make_vs_buy), color="steelblue", fill="#3F2D91", alpha=0.5) +
+    theme_bw() +
+    theme(
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+        text=element_text(size=20)) + 
+    scale_x_log10() + 
+    labs(x="Cost of part", y="Make vs buy") -> plot_2
+
+ggsave("./plots/make_vs_buy_before_merge.png", plot_1, width = 15, height = 10)
+ggsave("./plots/make_vs_buy_after_merge.png", plot_2, width = 15, height = 10)
+```
+
+### Distribution of make vs buy for invoiced price variable
+```{r}
+df_after_merge %>% 
+    filter(invoiced_price > 0.0) %>% 
+    filter(filter_by_quantile(invoiced_price)) %>% 
+    ggplot(aes(invoiced_price)) +
+    geom_density_ridges(aes(y=make_vs_buy), color="black", fill="darkorange", alpha=0.5) +
+    theme_bw() +
+    theme(
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+        text=element_text(size=20)) + 
+    scale_x_log10() + 
+    labs(x="Invoiced price", y="Make vs buy") -> plot_3
+
+ggsave("./plots/make_vs_buy_invoiced_price.png", plot_3, width = 15, height = 10)
+```
+
+### Check one specific order
 ```{r}
 df %>% filter(order_num == "577108")
+```
+
+### Check the invoiced_price of couple billions of dollars
+```{r}
+df[df$invoiced_price > quantile(df$invoiced_price, 0.99, na.rm=T), ] %>% top_n(1, invoiced_price)
+```
+
+### Mean invoiced_price of product family PF002
+```{r}
+df %>% select(invoiced_price, product_family) %>% filter(!is.na(invoiced_price) & product_family == "PF002") %>% filter(invoiced_price != 1089758016) %>% select(invoiced_price) %>% pull %>% mean
 ```
 
 ## Number of unique products
@@ -261,20 +346,33 @@ df_filtered %>%
 ## Manufacturer-customer percentage relation, realtionship with make_vs_buy
 ```{r}
 df %>% 
+    filter(!is.na(customer_region)) %>% 
+    filter(!is.na(manufacturing_region)) %>% 
     ggplot(aes(x=manufacturing_region, fill=customer_region)) +
     geom_bar(position="fill", color="white") +
     scale_fill_brewer(palette="Dark2") + 
     theme_bw() + 
-    theme(axis.title = element_text(size = 15), 
-          legend.title = element_text(size= 15))
+    theme(axis.title=element_text(size = 15), 
+          legend.title=element_text(size= 15),
+          text=element_text(size=20)) +
+    labs(x="Manufacturing region", y="Proportion", fill="Customer region") -> plot_4
 
-df %>% 
-    ggplot(aes(x=manufacturing_region, fill=make_vs_buy)) +
+ggsave("./plots/manufactured_customer_region_row_percentage.png", plot_4, width = 10, height = 10)
+```
+
+```{r}
+df_after_merge %>% 
+    filter(!is.na(customer_region)) %>% 
+    ggplot(aes(x=customer_region, fill=make_vs_buy)) +
     geom_bar(position="fill", color="white") +
     scale_fill_brewer(palette="Paired") + 
     theme_bw() + 
     theme(axis.title = element_text(size = 15), 
-          legend.title = element_text(size= 15))
+          legend.title = element_text(size= 15),
+          text=element_text(size=20)) +
+    labs(x="Customer region", y="Proportion", fill="Customer region") -> plot_5
+
+ggsave("./plots/customer_region_make_vs_buy_row_percentage.png", plot_5, width = 10, height = 10)
 ```
 
 ## Invoice price distribution depending on manufactured_region and customer_region
