@@ -162,14 +162,26 @@ dat %>%
 dat %>%
   filter(!is.na(customer_region)) %>% 
   filter(between(gm, 0, 1)) %>% 
-  ggplot(aes(gm, customer_region)) +
-  geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.5) +
+    filter(invoiced_price != cost_of_part) %>% 
+  ggplot(aes(gm, customer_region, fill = customer_region)) +
+  geom_density_ridges(stat = "binline",
+                      scale = 0.9,
+                      bins = 20,
+                      alpha = 0.5,
+                      show.legend = FALSE) +
   labs(
     x = "Gross margin",
     y = "Customer region"
   ) + 
   theme(text = element_text(size = 6),
-        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+              scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    ))
+  
 } %>% 
           ggsave(filename = "images/gm_by_customer_region_ridge.pdf", 
          width = 8,
@@ -178,6 +190,120 @@ dat %>%
          dpi = 300,
          device = pdf)
 ```
+
+Repeat, wbuth with cost_of_part > 0
+```{r}
+{
+dat %>%
+  filter(!is.na(customer_region)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(cost_of_part > 0) %>% 
+  ggplot(aes(gm, customer_region, fill = customer_region)) +
+  geom_density_ridges(stat = "binline",
+                      scale = 0.9,
+                      bins = 20,
+                      alpha = 0.5,
+                      show.legend = FALSE) +
+  labs(
+    x = "Gross margin",
+    y = "Customer region"
+  ) + 
+  theme(text = element_text(size = 6),
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+          scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    ))
+  
+} %>% 
+          ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Check if Europe has normal distribution
+```{r}
+europe_gm <- tibble(gm = europe_gm)
+{
+europe_gm %>% 
+  filter(gm != 0) %>% 
+  ggplot(aes(gm)) +
+  geom_histogram(aes(y= ..density..), 
+                 fill = hue_pal()(2)[2],
+                 alpha = 0.35) +
+    stat_function(fun = dnorm, n = 101, args = list(mean = 0.5, sd = 0.21),
+                  color = hue_pal()(2)[1])
+  
+}
+```
+The Europe definitely resembles normal distribution ~ N(0.5, 0.21)
+
+```{r}
+{
+dat %>%
+  filter(!is.na(customer_region)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(cost_of_part > 0) %>% 
+  filter(invoiced_price != cost_of_part) %>% 
+  ggplot(aes(gm, customer_region, fill = customer_region)) +
+  geom_density_ridges(stat = "binline", 
+                      bins = 15,
+                      scale = 0.9, alpha = 0.5,
+                      show.legend = FALSE) +
+  labs(
+    x = "Gross margin",
+    y = "Customer region"
+  ) + 
+      scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    )) +
+  theme(text = element_text(size = 6),
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+          ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost_positive_gm.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Approximate North America and Europe with normal distribution
+
+
+## GM by customer industry
+```{r}
+{
+dat %>%
+  filter(!is.na(customer_industry)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  ggplot(aes(gm)) +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.7) +
+    facet_wrap(~ customer_industry, ncol = 3, scale = "free_y") +
+  theme(text = element_text(size = 6),
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+    labs(
+      x = "Gross margin", 
+      y = "Count"
+    )
+} %>% 
+          ggsave(filename = "images/gm_by_customer_industry_hist.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+
 
 ## Gross margin by product family
 ```{r}
@@ -205,6 +331,8 @@ dat %>%
 
 
 ## Gross margin dependent on binned quantity
+
+
 ```{r}
 dat %>% 
   filter(between(gm, 0, 1)) %>% 
@@ -216,11 +344,235 @@ dat %>%
     ordered_qty > 1000 ~ "more than 1000"
   )) %>% 
   ggplot(aes(qty_bin, gm)) +
-    geom_boxplot()
+    geom_boxplot() +
+  labs(
+    x = "Quantity bin",
+    y = "Gross margin"
+  )
 ```
 
-## Gross margin dependen on binned inovice price
+
 ```{r}
+{
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(ordered_qty > 0) %>% 
+  filter(invoiced_qty_shipped > 0 ) %>%  # Transportation
+  mutate(qty_bin = case_when(
+    invoiced_qty_shipped > 0 & invoiced_qty_shipped < 10 ~ "between 0 and 10",
+    between(invoiced_qty_shipped, 10, 100) ~ "between 10 and 100",
+    between(invoiced_qty_shipped, 100, 1000) ~ "between 100 and 1000",
+    between(invoiced_qty_shipped, 1000, 10000) ~ "between 1000 and 10000",
+    invoiced_qty_shipped > 10000 ~ "more than 10000"
+  )) %>% 
+  ggplot(aes(qty_bin, gm)) +
+  geom_boxplot(aes(fill = qty_bin), alpha = 0.6, show.legend = FALSE) +
+  labs(
+    x = "Shipped quantity bin",
+    y = "Gross margin"
+  ) +
+    theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+      ggsave(filename = "images/gm_by_binned_shipped_qty.pdf", 
+      width = 8,
+      height = 8,
+      units = "cm",
+      dpi = 300,
+      device = pdf)
+```
+
+## Economy of scale (fixed item, increased quantity)
+
+Item code *200001
+```{r}
+dat %>% 
+  group_by(item_code) %>% 
+  summarise(price_sd = sd(invoiced_price, na.rm = TRUE),
+            cost_of_part_sd = sd(cost_of_part, na.rm = TRUE),
+            qty_sd = sd(ordered_qty, na.rm = TRUE),
+            median_qty = median(ordered_qty, na.rm = TRUE),
+            median_price  = median(invoiced_price, na.rm = TRUE),
+            n_customers = n_distinct(customer_id)) %>% 
+  arrange(desc(price_sd)) -> items_by_price_sd
+
+items_by_price_sd %>% 
+  ggplot(aes(median_qty, price_sd)) +
+  geom_point() +
+  
+```
+
+After choosing item code
+```{r}
+# OK: 180037
+# GREAT: CP30G01, 005999
+{
+  dat %>% 
+  filter(item_code %in%  c("CP30G01")) %>% 
+  mutate(item_code = paste0("Item ", item_code)) %>% 
+  filter(invoiced_price != 0) %>% 
+    group_by(item_code) %>% 
+  ggplot(aes(invoiced_qty_shipped, invoiced_price, color = item_code)) + 
+  geom_point(show.legend = FALSE, alpha = 0.5) +
+  #geom_text(aes(label = round(gm, 2)), size = 4) +
+  labs(
+    x = "Invoiced quantity",
+    y = "Invoiced price"
+  ) +
+  facet_wrap(~ item_code, scale = "free") +
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
+  } %>% 
+        ggsave(filename = "images/same_item_diff_price_qty.pdf", 
+      width = 8,
+      height = 8,
+      units = "cm",
+      dpi = 300,
+      device = pdf)
+```
+**Economy of scale** - gm + invoiced quantity + invoiced price
+Chosen item!
+```{r}
+{
+  dat %>% 
+  filter(item_code %in%  c("CP30G01")) %>% 
+  mutate(item_code = paste0("Item ", item_code)) %>% 
+  filter(invoiced_price != 0) %>% 
+  mutate(qty_bin = case_when(
+    between(invoiced_qty_shipped, 0, 7) ~ 5,  #"low",
+    between(invoiced_qty_shipped, 7, 30) ~ 25,# "medium",
+    invoiced_qty_shipped > 30 ~ 50 # "high" 
+  )) %>% 
+  ggplot(aes(qty_bin, gm)) + 
+  #geom_point(show.legend = FALSE, alpha = 0.5) +
+    geom_boxplot(aes(qty_bin, gm, group = qty_bin),
+                 width = 15,
+                 fill = hue_pal()(2)[2], alpha = 0.5) +
+  #geom_text(aes(label = round(gm, 2)), size = 4) +
+  labs(
+    x = "Invoiced quantity",
+    y = "Gross margin",
+    title = "Item code CP30G01"
+  ) +
+  scale_x_continuous(breaks = seq(0, 56, 10),
+                     minor_breaks = NULL) + 
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
+  } %>% 
+        ggsave(filename = "images/lower_gm_higher_qty.pdf", 
+      width = 8,
+      height = 8,
+      units = "cm",
+      dpi = 300,
+      device = pdf)
+```
+
+Calculate profit - mean
+```{r}
+  dat %>% 
+  filter(item_code %in%  c("CP30G01")) %>% 
+  mutate(item_code = paste0("Item ", item_code)) %>% 
+  filter(invoiced_price != 0) %>% 
+  mutate(qty_bin = case_when(
+    between(invoiced_qty_shipped, 0, 7) ~ 5,  #"low",
+    between(invoiced_qty_shipped, 7, 30) ~ 25,# "medium",
+    invoiced_qty_shipped > 30 ~ 50 # "high" 
+  )) %>% 
+  group_by(qty_bin) %>%
+  summarise(profit = mean((invoiced_qty_shipped *
+                            (invoiced_price - cost_of_part)),
+            na.rm = TRUE))
+          
+```
+
+Calculate profit - boxplot
+```{r}
+{ 
+  dat %>% 
+  filter(item_code %in%  c("CP30G01")) %>% 
+  mutate(item_code = paste0("Item ", item_code)) %>% 
+  filter(invoiced_price != 0) %>% 
+  mutate(qty_bin = case_when(
+    between(invoiced_qty_shipped, 0, 7) ~ 5,  #"low",
+    between(invoiced_qty_shipped, 7, 30) ~ 25,# "medium",
+    invoiced_qty_shipped > 30 ~ 50 # "high" 
+  )) %>% 
+  ggplot(aes(qty_bin,
+             invoiced_qty_shipped *
+                          (invoiced_price - cost_of_part),
+             group = qty_bin)) +
+  geom_boxplot(width = 15,
+                 fill = hue_pal()(2)[1], alpha = 0.6) +
+  labs(
+    x = "Invoiced quantity",
+    y = "Profit",
+    title = "Item code CP30G01"
+  ) +
+    annotate("text",
+             size = 2,
+             x = 5, 
+             y = 4750, 
+             label = 
+               unname(TeX(c("$gm = 0.595$")))) +
+        annotate("text",
+                 size = 2,
+             x = 25, 
+             y = 6250, 
+             label = 
+               unname(TeX(c("$gm = 0.356$")))) +
+    annotate("text",
+             size = 2,
+             x = 50, 
+             y = 10550, 
+             label = 
+               unname(TeX(c("$gm = 0.154$")))) +
+    ylim(0, 11500) +
+   theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
+  } %>% 
+          ggsave(filename = "images/higher_qty_higher_profit_with_gm.pdf", 
+      width = 8,
+      height = 8,
+      units = "cm",
+      dpi = 300,
+      device = pdf)
+  
+```
+
+
+
+```{r}
+{dat %>% 
+  filter(item_code %in%  c("CP30G01", "000871", "005999")) %>% 
+  mutate(item_code = paste0("Item ", item_code)) %>% 
+  filter(invoiced_price != 0) %>% 
+  ggplot(aes(invoiced_qty_shipped, cost_of_part, color = item_code)) + 
+  geom_point(show.legend = FALSE) +
+  labs(
+    x = "Invoiced quantity",
+    y = "Invoiced price"
+  ) +
+  facet_wrap(~ item_code, scale = "free") +
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
+  } %>% 
+        ggsave(filename = "images/same_item_diff_price_qty.pdf", 
+      width = 8,
+      height = 8,
+      units = "cm",
+      dpi = 300,
+      device = pdf)
+```
+
+
+## Gross margin dependent on binned invoice price
+```{r}
+
+```
+
+Boxplot
+```{r}
+{
 dat %>% 
   filter(between(gm, 0, 1)) %>% 
   filter(invoiced_price > 0) %>% 
@@ -231,11 +583,274 @@ dat %>%
     invoiced_price > 1000 ~ "more than 1000"
   )) %>% 
   ggplot(aes(price_bin, gm)) +
-    geom_boxplot() +
+    geom_boxplot(aes(fill = price_bin),
+                 alpha = 0.6,
+                 show.legend = FALSE) +
   labs(
-    x = "Price bin"
+    x = "Price bin",
+    y = "Gross margin"
+  ) + 
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "images/gm_by_binned_price_box.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Ridge
+```{r}
+{
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+  )) %>% 
+  ggplot(aes(gm, price_bin)) +
+    geom_density_ridges(fill =  hue_pal()(2)[2],
+                        alpha = 0.6,
+                        show.legend = FALSE) +
+  labs(
+    y = "Price bin",
+    x = "Gross margin"
+  ) + 
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "images/gm_by_binned_price_ridge.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Fraction of Gross Margin exactly equal to one
+```{r}
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+   mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+   ))  %>% 
+  group_by(price_bin) %>% summarise(sum(gm == 1) / n())
+
+```
+
+
+```{r}
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+   mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+   ))  %>% 
+  filter(!is.na(product_group)) %>% 
+  ggplot(aes(price_bin, gm)) +
+  geom_boxplot() +
+  facet_wrap(~  product_group)
+```
+
+
+## Cost of part dependent on binned invoice price
+```{r}
+{
+dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(invoiced_price > 0) %>% 
+  #filter(cost_of_part > 0) %>%  # dodano
+  mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+  )) %>%
+  group_by(price_bin, item_code) %>% 
+  summarise(cost_of_part = mean(cost_of_part, na.rm = TRUE),
+            shipped_qty = mean(invoiced_qty_shipped, na.rm = TRUE),
+            invoiced_price = mean(invoiced_price, na.rm = TRUE),
+            gm = mean(gm, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+    filter_percent(cost_of_part, 0.01) %>% 
+  ggplot(aes(price_bin, cost_of_part)) +
+     geom_boxplot(aes(fill = price_bin),
+                  alpha = 0.6,
+                  show.legend = FALSE) +
+  labs(
+    x = "Price bin",
+    y = "Cost of part"
+  ) + 
+  scale_x_log10()
+  scale_y_log10(labels = scales::label_number_si()) +
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "images/cost_of_part_by_binned_price_box.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+## Invoice lines binned by price and customer age
+```{r}
+dat %>% 
+  mutate(
+    customer_age =
+      case_when(
+        year(customer_first_invoice_date) %in% 2016:2021 ~ "new",
+        year(customer_first_invoice_date) %in% 2010:2015 ~ "medium",
+        year(customer_first_invoice_date) < 2010 ~ "old"
+      )
+  ) %>% 
+  mutate(profit = (invoiced_qty_shipped *
+                            (invoiced_price - cost_of_part))) %>% 
+  filter_var_percent(profit, 0.05) %>% 
+  mutate(customer_age = fct_reorder(customer_age, profit)) %>% 
+  ggplot(aes(profit, customer_age)) +
+  geom_density_ridges()
+  labs(
+    x  = "Customer age bin",
+    y = "Profit"
+  )
+  
+  
+```
+
+Customer age - gross margin
+```{r}
+dat %>% 
+  mutate(
+    customer_age =
+      case_when(
+        year(customer_first_invoice_date) %in% 2016:2021 ~ "new",
+        year(customer_first_invoice_date) %in% 2010:2015 ~ "medium",
+        year(customer_first_invoice_date) < 2010 ~ "old"
+      )
+  ) %>% 
+  filter(cost_of_part == 0) %>% 
+  count(customer_age)
+  filter(between(gm, 0, 1)) %>% 
+  ggplot(aes(gm, fill = customer_age)) +
+  geom_histogram(show.legend = FALSE) +
+  facet_wrap(~ customer_age)
+  labs(
+    x  = "Customer age bin",
+    y = "Profit"
   )
 ```
+
+
+```{r}
+dat %>% 
+  mutate(profit = (invoiced_qty_shipped *
+                            (invoiced_price - cost_of_part))) %>% 
+  filter_var_percent(profit, 0.05) %>% 
+  filter_var_percent(gm, 0.05) %>% 
+  #mutate(customer_industry = fct_reorder(customer_industry, profit)) %>% 
+  ggplot(aes(gm, profit)) +
+  geom_point()
+```
+
+
+## Quantity and price 
+Are customers ordering high priced items in large quantity?
+```{r}
+{dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(invoiced_price > 0) %>%
+  filter(invoiced_qty_shipped > 0) %>%
+  filter_percent(invoiced_price, 0.025) %>% 
+  group_by(item_code, product_family, customer_industry, make_vs_buy) %>% 
+  summarise(cost_of_part = mean(cost_of_part, na.rm = TRUE),
+            shipped_qty = mean(invoiced_qty_shipped, na.rm = TRUE),
+            invoiced_price = mean(invoiced_price, na.rm = TRUE),
+            gm = mean(gm, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+    ggplot(aes(invoiced_price, shipped_qty)) +
+    geom_point(alpha = 0.2, show.legend = FALSE,
+               color = hue_pal()(2)[2]) +
+  labs(
+    y = "Shipped quantity",
+    x = "Invoiced price"
+  ) + 
+  scale_y_log10(labels = scales::label_number_si()) +
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "images/scatter_price_quantity.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+## Shipped Quantity - Invoiced price, outliers
+```{r}
+
+{dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(invoiced_price > 0) %>%
+  filter(invoiced_qty_shipped > 0) %>% 
+  mutate(make_vs_buy = case_when(
+    make_vs_buy %in% c("BUY", "BUY - IMPORTED",
+                       "BUY - INTERPLNT TRNS",
+                       "BUY - LOCAL",
+                       "PURSHASED",
+                       "PURCHASED (RAW)") ~ "buy",
+    make_vs_buy %in% c("FINISHED GOODS", "MANUFACTURED") ~ "make")
+  ) %>%
+  filter(!is.na(make_vs_buy)) %>%
+  filter(cost_of_part > 0) %>%  # dodano
+  mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+  )) %>%
+  filter_percent(invoiced_price, 0.025) %>% 
+  group_by(item_code, product_family, customer_industry, make_vs_buy) %>% 
+  summarise(cost_of_part = mean(cost_of_part, na.rm = TRUE),
+            shipped_qty = mean(invoiced_qty_shipped, na.rm = TRUE),
+            invoiced_price = mean(invoiced_price, na.rm = TRUE),
+            gm = mean(gm, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(item_code_s = stringr::str_detect(item_code, "^[0-9]{1}-[0-9]{3}.*")) %>%
+   filter(!is.na(item_code_s)) %>%
+  ggplot(aes(invoiced_price, shipped_qty, color = item_code_s)) +
+    ggplot(aes(invoiced_price, shipped_qty)) +
+    geom_point(alpha = 0.2, show.legend = FALSE,
+               color = hue_pal()(2)[1]) +
+  labs(
+    y = "Shipped quantity",
+    x = "Invoiced price"
+  ) + 
+  scale_y_log10(labels = scales::label_number_si()) +
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "images/scatter_price_quantity_special_case.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+```
+
+## Scatterplot
 
 ### Cost of part dependent on binned invoice price
 
@@ -355,8 +970,7 @@ order_line_qty_distinct %>%
   ) +
   scale_x_continuous(
     trans = scales::log10_trans(),
-    labels = scales::label_number_si(),
-    breaks = 1:10) +
+    labels = scales::label_number_si()) +
   scale_y_continuous(labels = scales::label_number_si()) +
    theme(text = element_text(size=6),
         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
