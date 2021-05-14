@@ -7,7 +7,8 @@ from CHAID import Tree
 
 class Segment:
     
-    def __init__(self, leaf, supernode_pairs, segment_pairs, segment_df, gm_cutoffs):
+    def __init__(self, segment_id, leaf, supernode_pairs, segment_pairs, segment_df, gm_cutoffs):
+        self.segment_id = segment_id
         self.leaf = leaf
         self.supernode_pairs = supernode_pairs
         self.segment_pairs = segment_pairs
@@ -33,8 +34,8 @@ class SuperCHAID:
     SINGLETON_KEY = ("", )
 
     def __init__(self, supernode_features, features_list, dependant_variable, verbose=True,
-                 alpha_merge=0.05, max_depth=2, 
-                 min_parent_node_size=30, min_child_node_size=30,
+                 alpha_merge=0.05, max_depth=6, 
+                 min_parent_node_size=100, min_child_node_size=100,
                  split_threshold=0, is_exhaustive=False):
         self.supernode_features = supernode_features
         self.features_list = features_list
@@ -46,6 +47,7 @@ class SuperCHAID:
         self.min_child_node_size = min_child_node_size
         self.split_threshold = split_threshold
         self.is_exhaustive = is_exhaustive
+        self.id_counter = 0
         
     def fit(self, df):
         self.trees = {}
@@ -78,7 +80,7 @@ class SuperCHAID:
                     segment_df = segment_df[filter].reset_index(drop=True)
                     
                 gm_cutoffs = self._determine_gm_cutoffs(segment_df)
-                segment = Segment(leaf, supernode_pairs, segment_pairs, segment_df, gm_cutoffs)
+                segment = self._create_segment(leaf, supernode_pairs, segment_pairs, segment_df, gm_cutoffs)
                 tree.segments.append(segment)
                 
             tree.root = self._rebuild(tree, supernode_df, {}, tree.tree_store[0])
@@ -95,6 +97,8 @@ class SuperCHAID:
     def predict(self, input_row, impute=True):
         input_row = input_row.copy()
         tree = self._get_tree(input_row)
+        if tree is None: return None
+        
         segment_pairs = {}
         imputed_pairs = {}
         current_node = tree.root
@@ -154,6 +158,11 @@ class SuperCHAID:
           split_threshold=self.split_threshold,
           is_exhaustive=self.is_exhaustive
         )
+        
+    def _create_segment(self, leaf, supernode_pairs, segment_pairs, segment_df, gm_cutoffs):
+        segment_id = self.id_counter
+        self.id_counter += 1
+        return Segment(segment_id, leaf, supernode_pairs, segment_pairs, segment_df, gm_cutoffs)
 
     def _rebuild(self, tree, df, pairs, node):
         node.df = df
@@ -180,7 +189,8 @@ class SuperCHAID:
             key = []
             for supernode_feature in self.supernode_features:
                 key.append(input_row[supernode_feature])
-            tree = self.trees[tuple(key)]
+            key = tuple(key)
+            tree = self.trees[key] if key in self.trees else None
         return tree
         
     def _determine_gm_cutoffs(self, segment_df):
