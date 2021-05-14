@@ -184,8 +184,8 @@ dat %>%
   
 } %>% 
           ggsave(filename = "images/gm_by_customer_region_ridge.pdf", 
-         width = 8,
-         height = 8,
+         width = 5,
+         height = 5,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -219,8 +219,8 @@ dat %>%
   
 } %>% 
           ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost.pdf", 
-         width = 8,
-         height = 8,
+         width = 5,
+         height = 5,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -269,14 +269,163 @@ dat %>%
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
           ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost_positive_gm.pdf", 
-         width = 8,
-         height = 8,
+         width = 5,
+         height = 5,
          units = "cm",
          dpi = 300,
          device = pdf)
 ```
 
 Approximate North America and Europe with normal distribution
+
+North America:
+```{r}
+{
+dat %>%
+  filter(!is.na(customer_region)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(cost_of_part > 0) %>% 
+  filter(invoiced_price != cost_of_part) %>% 
+  filter(customer_region == "North America") %>% 
+  ggplot(aes(gm)) +
+  geom_histogram(aes(y = ..density..), fill = hue_pal()(4)[3], alpha = 0.3) +
+  stat_function(fun = dnorm, n = 101, args = list(mean = 0.4, sd = 0.198),
+                color = hue_pal()(2)[1],
+                linetype = 2) +
+theme(text = element_text(size = 6),
+      plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
+} %>% 
+            ggsave(filename = "images/gm_north_america_normal.pdf", 
+         width = 5,
+         height = 5,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+  
+```
+Europe:
+```{r}
+{
+dat %>%
+  filter(!is.na(customer_region)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(cost_of_part > 0) %>% 
+  filter(invoiced_price != cost_of_part) %>% 
+  filter(customer_region == "Europe") %>% 
+  ggplot(aes(gm)) +
+  geom_histogram(aes(y = ..density..), fill = hue_pal()(4)[3], alpha = 0.3) +
+  stat_function(fun = dnorm, n = 101, args = list(mean = 0.48, sd = 0.21),
+                color = hue_pal()(2)[1],
+                linetype = 2) +
+theme(text = element_text(size = 6),
+      plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
+} %>% 
+            ggsave(filename = "images/gm_europe_normal.pdf", 
+         width = 5,
+         height = 5,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+  
+```
+
+What with Asia?
+```{r}
+dat %>%
+  filter(!is.na(customer_region)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(cost_of_part > 0) %>% 
+  filter(invoiced_price != cost_of_part) %>% 
+  filter(customer_region == "Asia") %>% 
+  ggplot(aes(gm)) +
+  geom_histogram(aes(y = ..density..), bins = 20, fill = hue_pal()(4)[3], alpha = 0.3) +
+  stat_function(fun = dnorm, n = 101, args = list(mean = 0.25, sd = 0.15),
+                color = hue_pal()(2)[1],
+                linetype = 2) 
+```
+
+### Why Asia has smaller gross margin? Compare with quantity!!!
+```{r}
+dat %>%
+  filter(!is.na(customer_region)) %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(cost_of_part > 0) %>%
+  filter(ordered_qty > 0) %>% 
+  ggplot(aes(gm)) +
+  geom_histogram(aes(y = ..density..)) +
+  #scale_x_log10() + 
+  facet_wrap(~customer_region)
+  
+```
+
+It turns out that gross margin Asia can also look like normal distribution
+```{r}
+{
+  dat %>%
+    filter(!is.na(customer_region)) %>% 
+    filter(between(gm, 0, 1)) %>% 
+    filter(cost_of_part > 0) %>%
+    filter(ordered_qty > 0) %>% 
+    filter(invoiced_price != cost_of_part) %>% 
+    filter(customer_region == "Asia") %>% 
+    filter(intercompany != "YES") %>% 
+    filter(top_customer_group != "STAR") %>% 
+    ggplot(aes(gm)) +
+    geom_histogram(aes( y = ..density.. ), alpha = 0.4, fill = hue_pal()(2)[2]) +
+    stat_function(fun = dnorm, n = 101, args  = list(mean = 0.342, sd = 0.206),
+                  color = hue_pal()(2)[1],
+                  linetype = 2)  +
+    facet_wrap(~ intercompany) +
+    theme(text = element_text(size = 6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+    labs(
+      x = "Gross margin",
+      y = "Density"
+    )
+} %>% 
+  ggsave(filename = "images/gm_asa_normal_remove_ic_s.pdf", 
+         width = 3,
+         height = 3,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Difference in gross margin between intercompany and non-intercomapny 
+for Asia
+```{r}
+{
+  dat %>%
+    filter(!is.na(customer_region)) %>% 
+    filter(between(gm, 0, 1)) %>% 
+    filter(cost_of_part > 0) %>%
+    filter(ordered_qty > 0) %>% 
+    filter(invoiced_price != cost_of_part) %>% 
+    filter(customer_region == "Asia") %>% 
+    #filter(intercompany != "YES") %>% 
+    filter(top_customer_group != "STAR") %>% 
+    mutate(intercompany = if_else(intercompany == "YES", "intercompany",
+           "not intercompany")) %>% 
+    ggplot(aes(gm)) +
+    geom_histogram(aes( y = ..density.. ), alpha = 0.4, fill = hue_pal()(2)[2]) +
+    #stat_function(fun = dnorm, n = 101, args  = list(mean = 0.342, sd = 0.206),
+    #              color = hue_pal()(2)[1],
+    #              linetype = 2)  +
+    facet_wrap(~ intercompany) +
+    theme(text = element_text(size = 6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+    labs(
+      x = "Gross margin",
+      y = "Density"
+    )
+} %>% 
+  ggsave(filename = "images/gm_asia_intercompany_vs_not_intercomapny.pdf", 
+         width = 5,
+         height = 5,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
 
 
 ## GM by customer industry
@@ -303,6 +452,63 @@ dat %>%
          device = pdf)
 ```
 
+Sorted boxplots
+```{r}
+{
+  dat %>%
+    filter(!is.na(customer_region)) %>% 
+    filter(between(gm, 0, 1)) %>% 
+    filter(cost_of_part > 0) %>%
+    filter(invoiced_qty_shipped > 0) %>% 
+    mutate(customer_industry = fct_reorder(customer_industry, gm)) %>% 
+    ggplot(aes(x = customer_industry, y = gm, fill = customer_industry)) +
+    geom_boxplot(show.legend = FALSE, alpha = 0.7,
+                 outlier.alpha = 0.05) +
+    theme(text = element_text(size = 6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+    labs(
+      x = "Customer industry", 
+      y = "Gross margin"
+    )
+} %>% 
+  ggsave(filename = "images/gm_by_customer_industry_boxplots.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+
+```
+
+Sorted boxplots + facet wrap by customer region
+```{r}
+{
+  dat %>%
+    filter(!is.na(customer_region)) %>% 
+    filter(between(gm, 0, 1)) %>% 
+    filter(cost_of_part > 0) %>%
+    filter(invoiced_qty_shipped > 0) %>% 
+    mutate(color_factor = as.character(customer_industry)) %>% 
+    mutate(customer_industry = reorder_within(customer_industry, gm, customer_region)) %>% 
+    ggplot(aes(x = customer_industry, y = gm, fill = color_factor)) +
+    geom_boxplot(show.legend = FALSE, alpha = 0.7,
+                 outlier.alpha = 0.05) +
+    theme(text = element_text(size = 6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+    labs(
+      x = "Customer industry", 
+      y = "Gross margin"
+    ) +
+    scale_x_reordered() +
+    facet_wrap(~ customer_region, nrow = 3, scale = "free_x")
+} %>% 
+  ggsave(filename = "images/gm_by_customer_industry_boxplots_by_customer_region.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
 
 
 ## Gross margin by product family
@@ -310,12 +516,16 @@ dat %>%
 {
 dat %>%
   filter(!is.na(product_family)) %>% 
-  filter(between(gm, 0, 1)) %>% 
-  ggplot(aes(gm, product_family)) +
-  geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.5) +
+     filter(!is.na(customer_region)) %>% 
+    filter(between(gm, 0, 1)) %>% 
+    filter(cost_of_part > 0) %>%
+    filter(invoiced_qty_shipped > 0) %>% 
+  ggplot(aes(gm, product_family, fill = product_family)) +
+  geom_density_ridges(stat = "binline", scale = 0.95, alpha = 0.5,
+                      show.legend = FALSE) +
   labs(
     x = "Gross margin",
-    y = "Customer region"
+    y = "Product family"
   ) + 
   theme(text = element_text(size = 6),
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")
@@ -327,6 +537,61 @@ dat %>%
          units = "cm",
          dpi = 300,
          device = pdf)
+```
+
+## Calc profit for each line
+```{r}
+{
+dat %>%
+  filter(!is.na(product_family)) %>% 
+     filter(!is.na(customer_region)) %>% 
+    filter(between(gm, 0, 1)) %>% 
+    filter(cost_of_part > 0) %>%
+    filter(invoiced_qty_shipped > 0) %>% 
+  mutate(profit = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
+  filter_var_percent(profit, 0.01) %>%  
+  filter_var_percent(invoiced_qty_shipped, 0.01) %>% 
+  ggplot(aes(profit)) +
+  geom_histogram(
+    bins = 50,
+    fill = hue_pal()(2)[2], 
+    alpha = 0.6
+    ) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  labs(
+    x = "Profit of invoice line",
+    y = "Count"
+  ) +
+  scale_x_continuous(trans = scales::log1p_trans(), 
+                       labels = scales::label_number_si(),
+                     breaks = c(0, 10**seq(0, 10)),
+                     minor_breaks = FALSE) +
+  theme(text = element_text(size = 6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
+  }
+          ggsave(filename = "images/profit_for_each_line_log1p.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+  
+```
+Profit correlated with invoice line
+```{r}
+dat %>%
+  filter(!is.na(product_family)) %>% 
+     filter(!is.na(customer_region)) %>% 
+    filter(between(gm, 0, 1)) %>% 
+    filter(cost_of_part > 0) %>%
+    filter(invoiced_qty_shipped > 0) %>% 
+  mutate(profit = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
+  filter_var_percent(profit, 0.01) %>%  
+  filter_var_percent(invoiced_qty_shipped, 0.01) %>% 
+  sample_frac(0.1) %>% 
+  ggplot(aes(gm, profit)) +
+  geom_hex() +
+  scale_y_continuous(trans = scales::log1p_trans()) +
 ```
 
 
@@ -575,7 +840,9 @@ Boxplot
 {
 dat %>% 
   filter(between(gm, 0, 1)) %>% 
-  filter(invoiced_price > 0) %>% 
+  filter(cost_of_part > 0) %>% 
+  #filter(invoiced_price > 0) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
   mutate(price_bin = case_when(
     invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
     between(invoiced_price, 10, 100) ~ "between 10 and 100",
@@ -593,11 +860,11 @@ dat %>%
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/gm_by_binned_price_box.pdf", 
+        ggsave(filename = "images/gm_by_binned_price_box_all.pdf", 
          width = 8,
          height = 8,
          units = "cm",
-         dpi = 300,
+         dpi = 250,
          device = pdf)
 ```
 
@@ -606,8 +873,11 @@ Ridge
 {
 dat %>% 
   filter(between(gm, 0, 1)) %>% 
+    filter(!is.na(invoiced_price)) %>% 
+    filter(invoiced_price >= 0) %>% 
+    filter(invoiced_qty_shipped >= 0) %>% 
   mutate(price_bin = case_when(
-    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    invoiced_price >= 0 & invoiced_price < 10 ~ "between 0 and 10",
     between(invoiced_price, 10, 100) ~ "between 10 and 100",
     between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
     invoiced_price > 1000 ~ "more than 1000"
@@ -668,6 +938,7 @@ dat %>%
 dat %>% 
   filter(between(gm, 0, 1)) %>% 
   filter(invoiced_price > 0) %>% 
+    filter(invoiced_qty_shipped > 0) %>% 
   #filter(cost_of_part > 0) %>%  # dodano
   mutate(price_bin = case_when(
     invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
@@ -675,6 +946,7 @@ dat %>%
     between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
     invoiced_price > 1000 ~ "more than 1000"
   )) %>%
+    filter_var_percent(cost_of_part, 0.01) %>% 
   group_by(price_bin, item_code) %>% 
   summarise(cost_of_part = mean(cost_of_part, na.rm = TRUE),
             shipped_qty = mean(invoiced_qty_shipped, na.rm = TRUE),
@@ -690,8 +962,11 @@ dat %>%
     x = "Price bin",
     y = "Cost of part"
   ) + 
-  scale_x_log10()
-  scale_y_log10(labels = scales::label_number_si()) +
+  scale_y_continuous(
+    trans = scales::log1p_trans(),
+    labels = scales::label_number_si(),
+    breaks = c(0, 10**seq(0, 10)),
+    minor_breaks = FALSE) +
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
