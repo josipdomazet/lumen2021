@@ -148,6 +148,29 @@ print(num_1 == num_2)
 df %>% filter(ordered_qty == 0) %>% select(item_code) %>% group_by(item_code) %>% tally %>% arrange(desc(n)) 
 ```
 
+### Bar plot for ordered_quantity equal to zero
+```{r}
+df %>% 
+    select(item_code) %>% 
+    filter(item_code == "TRANSPORTKOSTEN" |
+           item_code == "/C" |
+           item_code == "/LTI") %>% 
+    group_by(item_code) %>% 
+    tally() %>% 
+    ggplot(aes(x=reorder(item_code, -n), y=n, fill=c("TRANSPORTKOSTEN", "/C", "/LTI"))) +
+        geom_bar(stat="identity", alpha=0.8) + 
+        scale_fill_brewer(palette="Set2") +
+        theme_bw() +
+        theme(
+            axis.text.x=element_text(angle=0, vjust=0.5, size=20),
+            plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+            text=element_text(size=30),
+            legend.position="none") + 
+        labs(x="Transport item codes", y="Number of rows", color="Item code") -> plot_x
+
+ggsave("./plots/transportation_frequencies.png", plot_x, width = 15, height = 10)
+```
+
 ### What item codes have invoiced quantity shipped equal to zero?
 ```{r}
 df %>% filter(invoiced_qty_shipped == 0) %>% select(item_code, customer_region) %>% group_by(item_code, customer_region) %>% tally %>% arrange(desc(n)) 
@@ -243,6 +266,24 @@ df[df$invoiced_price > quantile(df$invoiced_price, 0.99, na.rm=T), ] %>% top_n(1
 ### Mean invoiced_price of product family PF002
 ```{r}
 df %>% select(invoiced_price, product_family) %>% filter(!is.na(invoiced_price) & product_family == "PF002") %>% filter(invoiced_price != 1089758016) %>% select(invoiced_price) %>% pull %>% mean
+```
+
+### Labeling error for order_date
+```{r}
+df %>% select(order_date) %>% filter(order_date == as.Date("9999-12-31")) %>% nrow
+```
+
+## Is there any correlation between manufatured region and the fact that item was manufactured or bought? 
+```{r}
+df_after_merge %>% 
+    select(manufacturing_region, make_vs_buy) %>% 
+    drop_na -> df_cont
+
+
+cont_tbl <- table(droplevels(df_cont$manufacturing_region), droplevels(df_cont$make_vs_buy))
+test <- chisq.test(cont_tbl)
+print(test)
+print(test$observed)
 ```
 
 ## Number of unique products
@@ -343,7 +384,7 @@ df_filtered %>%
     scale_y_continuous(breaks=seq(-4, 1, 0.2)) 
 ```
 
-## Manufacturer-customer percentage relation, realtionship with make_vs_buy
+## Manufacturer-customer percentage relation, relationship with make_vs_buy
 ```{r}
 df %>% 
     filter(!is.na(customer_region)) %>% 
