@@ -35,6 +35,8 @@ clean <- function(tbl) {
 
 filter_var_percent <- function(tbl, var, percent) {
   tbl %>% filter(between({{ var }},
-                         quantile({{ var }}, percent), 
-                         quantile({{ var  }}, 1 - percent)))
+                         quantile({{ var }}, percent, na.rm = TRUE), 
+                         quantile({{ var  }}, 1 - percent, na.rm =  TRUE)))
 }
+
+
