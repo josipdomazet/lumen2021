@@ -329,3 +329,93 @@ dat %>%
   view("WTF")
 ```
 
+## AVPU
+Let's omit star customers and intercompany transactions
+```{r}
+dat %>% 
+  filter(intercompany != "YES" & top_customer_group == "OTHER") %>% 
+  filter(cost_of_part > 0 ) %>%
+  filter(between(gm, 0, 1)) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
+  mutate(revenue = gm * invoiced_price * invoiced_qty_shipped) %>% 
+  group_by(customer_region) %>% 
+  summarise(total_revenue = sum(revenue),
+            arpu = total_revenue / n_distinct(customer_id),
+            n_users = n_distinct(customer_id)) %>% 
+  filter(!is.na(customer_region)) -> avpu_by_customer_region
+
+{
+avpu_by_customer_region %>% 
+  mutate(customer_region = fct_reorder(customer_region, arpu)) %>% 
+  ggplot(aes(arpu, customer_region, fill = customer_region)) +
+  geom_col(width = 0.5,
+           show.legend = FALSE) +
+    labs(
+    x = "Average revenue per user (AVPU)",
+    y = "Customer region"
+  ) +
+      theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 2.2, 2, 2), "mm")) +
+    scale_fill_manual(
+    values = c("Europe" = hue_pal()(4)[1],
+               "Asia" = hue_pal()(4)[2],
+               "North America" = hue_pal()(4)[3],
+               "(Missing)" = hue_pal()(4)[4]
+    ))
+} %>% 
+            ggsave(filename = "images/arpu_customer_region.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Fill by customer industry
+```{r}
+dat %>% 
+  filter(intercompany != "YES" & top_customer_group == "OTHER") %>% 
+  filter(cost_of_part > 0 ) %>%
+  filter(between(gm, 0, 1)) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
+  mutate(revenue = gm * invoiced_price * invoiced_qty_shipped) %>% 
+  group_by(customer_region, customer_industry) %>% 
+  filter_var_percent(revenue, 0.01) %>%
+  summarise(total_revenue = sum(revenue),
+            arpu = total_revenue / n_distinct(customer_id),
+            n_users = n_distinct(customer_id)) %>% 
+  mutate(arpu = arpu / sum(arpu)) %>% 
+  filter(!is.na(customer_region)) -> avpu_by_customer_region_and_industry
+
+{
+avpu_by_customer_region_and_industry %>% 
+  mutate(customer_region = fct_reorder(customer_region, arpu)) %>% 
+    mutate(customer_industry = factor(customer_industry,
+                                      levels = sort(customer_industry))) %>% 
+  ggplot(aes(customer_region, arpu, fill = customer_industry)) +
+  geom_col(
+      width = 0.5) +
+    labs(
+    y = "AVPU percentage",
+    x = "Customer region"
+  ) +
+    scale_y_continuous(labels = scales::percent) +
+    guides(fill = guide_legend(reverse = T, nrow = 2)) +
+      theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 2.2, 2, 2), "mm"),
+          legend.position = "top",
+          legend.text = element_text(size = 3),
+          legend.title = element_text(size = 3),
+          legend.key.height= unit(0.45, 'cm'),
+          legend.key.width= unit(0.45, 'cm')) +
+    labs(fill = "Customer industry")
+}  %>% 
+         ggsave(filename = "images/arpu_customer_region_and_industry.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+

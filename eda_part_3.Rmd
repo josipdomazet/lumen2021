@@ -841,7 +841,6 @@ Boxplot
 dat %>% 
   filter(between(gm, 0, 1)) %>% 
   filter(cost_of_part > 0) %>% 
-  #filter(invoiced_price > 0) %>% 
   filter(invoiced_qty_shipped > 0) %>% 
   mutate(price_bin = case_when(
     invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
@@ -970,13 +969,46 @@ dat %>%
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/cost_of_part_by_binned_price_box.pdf", 
+        ggsave(filename = "images/cost_of_part_by_binned_price_box_all.pdf", 
          width = 8,
          height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
 ```
+
+## Gross margin by price bin with positive unit cost
+```{r}
+{
+  dat %>% 
+  filter(between(gm, 0, 1)) %>% 
+  filter(cost_of_part > 0) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
+  mutate(price_bin = case_when(
+    invoiced_price > 0 & invoiced_price < 10 ~ "between 0 and 10",
+    between(invoiced_price, 10, 100) ~ "between 10 and 100",
+    between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
+    invoiced_price > 1000 ~ "more than 1000"
+  )) %>% 
+  ggplot(aes(price_bin, gm)) +
+    geom_boxplot(aes(fill = price_bin),
+                 alpha = 0.6,
+                 show.legend = FALSE) +
+  labs(
+    x = "Price bin",
+    y = "Gross margin"
+  ) + 
+  theme(text = element_text(size = 5.5),
+  plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "images/gm_by_binned_price_box_positive_unit_cost.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
 
 ## Invoice lines binned by price and customer age
 ```{r}
