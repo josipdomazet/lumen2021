@@ -234,6 +234,7 @@ cols_to_remove = [
     labor_cost_of_part,
     overhead_cost_of_part,
     item_code,
+    intercompany,
     product_group,
     invoiced_qty_shipped,
     num_of_unique_products_on_a_quote,
