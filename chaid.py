@@ -14,7 +14,7 @@ class Segment:
         self.segment_pairs = segment_pairs
         self.segment_df = segment_df
         self.gm_cutoffs = gm_cutoffs
-        self.duplicates = self.gm_cutoffs.shape[0] < 6
+        self.duplicates = len(self.gm_cutoffs) < 6
         
     @property
     def is_problematic(self):
@@ -34,8 +34,8 @@ class SuperCHAID:
     SINGLETON_KEY = ("", )
 
     def __init__(self, supernode_features, features_list, dependant_variable, verbose=True,
-                 alpha_merge=0.05, max_depth=6, 
-                 min_parent_node_size=100, min_child_node_size=100,
+                 alpha_merge=0.1, max_depth=4,
+                 min_parent_node_size=800, min_child_node_size=800,
                  split_threshold=0, is_exhaustive=False):
         self.supernode_features = supernode_features
         self.features_list = features_list
@@ -193,9 +193,21 @@ class SuperCHAID:
             tree = self.trees[key] if key in self.trees else None
         return tree
         
-    def _determine_gm_cutoffs(self, segment_df):
+    def _determine_gm_cutoffs(self, segment_df, impute=True):
         segment_df_dependant_variable = segment_df[self.dependant_variable].sort_values()
         _, bins = pd.qcut(segment_df_dependant_variable, q=[0, .2, .4, .6, .8, 1], retbins=True, duplicates="drop")
+        bins = list(bins)
+        if impute:
+            while len(bins) < 6:
+                assert len(bins) > 1, "Cannot impute GM class bound if length is less than 2."
+                max_index = 0
+                max_range = -1
+                for i in range(len(bins)-1):
+                    current_range = bins[i+1] - bins[i]
+                    if current_range > max_range:
+                        max_range = current_range
+                        max_index = i
+                bins.insert(max_index+1, (bins[max_index] + bins[max_index+1]) / 2)
         return bins
         
     def _belongs_to_segment(self, input_row, segment):
