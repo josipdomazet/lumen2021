@@ -32,7 +32,7 @@ internal company policies.
 But why is cost of part sometimes equal to zero? Is it also due to
 internal company policies? 
 Q: How can something be free to produce? 
-A: Check make_vs_buy. Column. It's buy.
+A: Check make_vs_buy
 
 ##Undefined gross margin 
 ```{r}
@@ -171,7 +171,7 @@ dat %>%
                       show.legend = FALSE) +
   labs(
     x = "Gross margin",
-    y = "Customer region"
+    y = NULL
   ) + 
   theme(text = element_text(size = 6),
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
@@ -184,8 +184,8 @@ dat %>%
   
 } %>% 
           ggsave(filename = "images/gm_by_customer_region_ridge.pdf", 
-         width = 5,
-         height = 5,
+         width = 6,
+         height = 6,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -206,7 +206,7 @@ dat %>%
                       show.legend = FALSE) +
   labs(
     x = "Gross margin",
-    y = "Customer region"
+    y = NULL
   ) + 
   theme(text = element_text(size = 6),
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
@@ -219,8 +219,8 @@ dat %>%
   
 } %>% 
           ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost.pdf", 
-         width = 5,
-         height = 5,
+         width = 6,
+         height = 6,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -252,12 +252,12 @@ dat %>%
   filter(invoiced_price != cost_of_part) %>% 
   ggplot(aes(gm, customer_region, fill = customer_region)) +
   geom_density_ridges(stat = "binline", 
-                      bins = 15,
+                      bins = 20,
                       scale = 0.9, alpha = 0.5,
                       show.legend = FALSE) +
   labs(
     x = "Gross margin",
-    y = "Customer region"
+    y = NULL
   ) + 
       scale_fill_manual(
     values = c("Europe" = hue_pal()(4)[1],
@@ -269,8 +269,8 @@ dat %>%
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
           ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost_positive_gm.pdf", 
-         width = 5,
-         height = 5,
+         width = 6,
+         height = 6,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -284,8 +284,8 @@ North America:
 dat %>%
   filter(!is.na(customer_region)) %>% 
   filter(between(gm, 0, 1)) %>% 
-  filter(cost_of_part > 0) %>% 
-  filter(invoiced_price != cost_of_part) %>% 
+  filter(cost_of_part > 0) %>%  # gm < 01.00
+  filter(invoiced_price != cost_of_part) %>%  #  gm > 0
   filter(customer_region == "North America") %>% 
   ggplot(aes(gm)) +
   geom_histogram(aes(y = ..density..), fill = hue_pal()(4)[3], alpha = 0.3) +
@@ -433,7 +433,8 @@ for Asia
 {
 dat %>%
   filter(!is.na(customer_industry)) %>% 
-  filter(between(gm, 0, 1)) %>% 
+  #filter(between(gm, 0, 1)) %>% 
+  filter(gm > 0 & gm < 1) %>% 
   ggplot(aes(gm)) +
   geom_histogram(fill = hue_pal()(2)[2], alpha = 0.7) +
     facet_wrap(~ customer_industry, ncol = 3, scale = "free_y") +
@@ -458,7 +459,7 @@ Sorted boxplots
   dat %>%
     filter(!is.na(customer_region)) %>% 
     filter(between(gm, 0, 1)) %>% 
-    filter(cost_of_part > 0) %>%
+    filter(gm > 0 & gm < 1) %>% 
     filter(invoiced_qty_shipped > 0) %>% 
     mutate(customer_industry = fct_reorder(customer_industry, gm)) %>% 
     ggplot(aes(x = customer_industry, y = gm, fill = customer_industry)) +
@@ -479,11 +480,40 @@ Sorted boxplots
          device = pdf)
 
 ```
+Sorted boxplots + remove intercompany
+```{r}
+{
+  dat %>%
+    filter(!is.na(customer_region)) %>% 
+    filter(intercompany != "YES") %>% 
+    filter(gm > 0 & gm < 1) %>% 
+    filter(invoiced_qty_shipped > 0) %>% 
+    mutate(customer_industry = fct_reorder(customer_industry, gm)) %>% 
+    ggplot(aes(x = customer_industry, y = gm, fill = customer_industry)) +
+    geom_boxplot(show.legend = FALSE, alpha = 0.7,
+                 outlier.alpha = 0.05) +
+    theme(text = element_text(size = 6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+    labs(
+      x = "Customer industry", 
+      y = "Gross margin"
+    )
+} %>% 
+  ggsave(filename = "images/gm_by_customer_industry_boxplots_no_intercompany.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+
+```
+
 
 Sorted boxplots + facet wrap by customer region
 ```{r}
 {
   dat %>%
+    filter(intercompany != "YES") %>% 
     filter(!is.na(customer_region)) %>% 
     filter(between(gm, 0, 1)) %>% 
     filter(cost_of_part > 0) %>%
@@ -504,7 +534,7 @@ Sorted boxplots + facet wrap by customer region
 } %>% 
   ggsave(filename = "images/gm_by_customer_industry_boxplots_by_customer_region.pdf", 
          width = 8,
-         height = 8,
+         height = 10,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -545,13 +575,11 @@ dat %>%
 dat %>%
   filter(!is.na(product_family)) %>% 
      filter(!is.na(customer_region)) %>% 
-    filter(between(gm, 0, 1)) %>% 
-    filter(cost_of_part > 0) %>%
+    filter(gm > 0 & gm < 1) %>% 
     filter(invoiced_qty_shipped > 0) %>% 
-  mutate(profit = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
-  filter_var_percent(profit, 0.01) %>%  
-  filter_var_percent(invoiced_qty_shipped, 0.01) %>% 
-  ggplot(aes(profit)) +
+  mutate(revenue = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
+  filter_var_percent(revenue, 0.001) %>%  
+  ggplot(aes(revenue)) +
   geom_histogram(
     bins = 50,
     fill = hue_pal()(2)[2], 
@@ -559,7 +587,7 @@ dat %>%
     ) +
   scale_y_continuous(labels = scales::label_number_si()) +
   labs(
-    x = "Profit of invoice line",
+    x = "Revenue of invoice line",
     y = "Count"
   ) +
   scale_x_continuous(trans = scales::log1p_trans(), 
@@ -567,9 +595,9 @@ dat %>%
                      breaks = c(0, 10**seq(0, 10)),
                      minor_breaks = FALSE) +
   theme(text = element_text(size = 6),
-          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
+          plot.margin = grid::unit(c(2, 1, 2, 2), "mm")) 
   }
-          ggsave(filename = "images/profit_for_each_line_log1p.pdf", 
+          ggsave(filename = "images/revenue_invoice_line.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -1155,7 +1183,6 @@ Are customers ordering high priced items in large quantity?
          dpi = 300,
          device = pdf)
 ```
-```
 
 ## Scatterplot
 
@@ -1207,19 +1234,31 @@ dat %>%
   scale_x_log10()
 ```
 
+```{r}
+dat %>% 
+  filter(ordered_qty > 0) %>% 
+  filter(between(ordered_qty, quantile(ordered_qty, 0.01, na.rm = TRUE),
+                 quantile(ordered_qty, 0.99, na.rm = TRUE))) %>% 
+  ggplot(aes(ordered_qty)) +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.75,
+                 color = "black") +
+  scale_x_continuous(labels = scales::label_number_si()) + 
+      theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm")) +
+  labs(
+    x = "Ordered quantity",
+    y = "Number of rows"
+  )
+  
+```
+
 
 # Quantities
 
 **linear scale**
 ```{r}
-dat %>% 
-  filter(!is.na(order_line_num)) %>% 
-  select(order_line_num, ordered_qty) %>% 
-  distinct() -> order_line_qty_distinct
-# perhaps some transportation items sometimes have ordered quantity equal to zero
-# and sometimes NA
 
-order_line_qty_distinct %>% 
+dat %>% 
   mutate(qty_bin = case_when(
     ordered_qty < 0 ~ "negative",
     ordered_qty == 0 ~ "exactly zero",
@@ -1233,6 +1272,12 @@ order_line_qty_distinct %>%
   mutate(n = 100*n / sum(n))
 
 ```
+
+```{r}
+dat %>% 
+ ggplot(aes(ordered_q))
+```
+
 
 ```{r}
 {

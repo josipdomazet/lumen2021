@@ -194,7 +194,11 @@ dat %>%
     mutate(make_vs_buy = fct_explicit_na(make_vs_buy)) %>% 
     mutate(make_vs_buy = fct_reorder(make_vs_buy, n)) %>% 
     ggplot(aes(n, make_vs_buy)) +
-    geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
+    #geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
+    geom_col(aes(fill = make_vs_buy),
+             color = "black",
+             alpha = 0.8,
+             show.legend = FALSE) +
     labs(
       x = "Number of rows",
       y = "Make vs buy"
@@ -219,10 +223,10 @@ dat %>%
   filter(born_on_date > ymd("1950-01-01")) %>% 
   ggplot(aes(born_on_date)) +
   geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, bins = 50,
-                  size = .25, color = "black") +
+                  size = .3, color = "black") +
   labs(
     x = "Born on date",
-    y = "Number of rows"
+    y = "Number of items"
   ) +
   scale_x_date(date_breaks = "4 year", date_labels = "%Y") +
   theme(text = element_text(size=6),
@@ -254,6 +258,7 @@ dat %>%
 {
   dat %>% 
     filter(invoiced_price > 0) %>% 
+    filter(invoiced_price < 1089758016) %>% 
     #filter(between(invoiced_price,
     #              quantile(invoiced_price, 0.01, na.rm = TRUE),
     #             quantile(invoiced_price, 0.99, na.rm = TRUE))
@@ -284,8 +289,8 @@ Filter + outliers
   dat %>% 
     filter(invoiced_price > 0) %>% 
     filter(between(invoiced_price,
-                   quantile(invoiced_price, 0.01, na.rm = TRUE),
-                   quantile(invoiced_price, 0.99, na.rm = TRUE))
+                   quantile(invoiced_price, 0.001, na.rm = TRUE),
+                   quantile(invoiced_price, 0.999, na.rm = TRUE))
     ) %>%
     ggplot(aes(invoiced_price)) +
     geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, 
@@ -311,14 +316,17 @@ Filter + outliers
 {
   dat %>% 
   filter(invoiced_price > 0) %>% 
-  filter(between(invoiced_price,
-               quantile(invoiced_price, 0.01, na.rm = TRUE),
-              quantile(invoiced_price, 0.99, na.rm = TRUE))
-     ) %>%
+    filter(invoiced_price <  1089758016.0) %>% 
+  # filter(between(invoiced_price,
+  #              quantile(invoiced_price, 0.01, na.rm = TRUE),
+  #             quantile(invoiced_price, 0.99, na.rm = TRUE))
+  #    ) %>%
   ggplot(aes(invoiced_price)) +
   geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6,
                  size = .25, color = "black") +
-  scale_x_continuous(trans = scales::log10_trans(), labels = scales::label_number_si()) +
+  scale_x_continuous(trans = scales::log10_trans(), 
+                     labels = scales::comma_format(accuracy = 0.001),
+                     breaks = c(0.001, 0.1, 1, 10, 10000)) +
   labs(
     x = "Invoiced price",
     y = "Number of rows"
@@ -328,8 +336,8 @@ Filter + outliers
         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
         ggsave(filename = "images/price_filtered_log.pdf", 
-         width = 6,
-         height = 6,
+         width = 8,
+         height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -420,21 +428,23 @@ Filter + outliers
 ```{r}
 {
   dat %>% 
-  filter(if_all(ends_with("cost_of_part"), ~ . > 0)) %>% 
+  filter(if_any(ends_with("cost_of_part"), ~ . > 0)) %>% 
   filter(if_all(ends_with("cost_of_part"), ~ between(.,
-                                                     quantile(., 0.01, na.rm=T),
-                                                     quantile(., 0.99, na.rm=T)))) %>% 
+                                                     quantile(., 0.001, na.rm=T),
+                                                     quantile(., 0.999, na.rm=T)))) %>% 
   pivot_longer(cols = ends_with("cost_of_part"), names_to = "cost_variant",
                values_to = "value") %>% 
-  ggplot(aes(x = value, y = cost_variant)) + 
-  geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.6) + 
-  scale_x_log10(labels = function(v) sprintf("%.3f", v)) +
+  ggplot(aes(x = value, y = cost_variant, fill = cost_variant)) + 
+  geom_density_ridges(show.legend = FALSE, alpha = 0.7) + 
+  scale_x_continuous(trans = scales::log10_trans(),
+                     labels = function(v) sprintf("%.3f", v),
+                     breaks = c(0.01, 1, 10, 1000, 10000)) +
   labs(
     x = "Value",
     y = "Cost component"
   ) + 
     theme(text = element_text(size=6),
-         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+         plot.margin=grid::unit(c(2, 1, 2, 2), "mm"))
 } %>% 
         ggsave(filename = "images/cost_components_ridge.pdf", 
          width = 8,
@@ -484,7 +494,8 @@ dat %>%
 
 Histogram
 ```{r}
-{dat %>% 
+{
+  dat %>% 
   #filter(invoiced_price > 0) %>% 
   filter(between(gm, 0, 1.00)) %>% 
   # invoiced_price == 0 is mostly for transportation
@@ -513,8 +524,8 @@ very big count at value of 1.00
 {dat %>% 
   filter(gm == 1) %>%
   filter(between(invoiced_price, 
-                 quantile(invoiced_price, 0.1, na.rm = TRUE),
-                 quantile(invoiced_price, 0.9, na.rm = TRUE)
+                 quantile(invoiced_price, 0.01, na.rm = TRUE),
+                 quantile(invoiced_price, 0.09, na.rm = TRUE)
   )
   ) %>% 
   ggplot(aes(invoiced_price)) +
@@ -542,15 +553,21 @@ Boxplot/ridge density for gross margin binned into
 bins spanning equal range
 This is with **linear scale**
 ```{r}
-{dat %>% 
-    filter(between(gm, 0, 1)) %>% 
+{
+  dat %>% 
+    filter(gm > 0 & gm < 1) %>% 
     mutate(gm_bin = ggplot2::cut_interval(gm, n = 5)) %>% 
+    filter(invoiced_qty_shipped > 0) %>% 
     group_by(gm_bin) %>% 
     filter(between(invoiced_price, 
                    quantile(invoiced_price, 0.05, na.rm = TRUE),
                    quantile(invoiced_price, 0.95, na.rm = TRUE))) %>% 
-                   ggplot(aes(invoiced_price, gm_bin)) +
-                     geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.75) +
+                   ggplot(aes(invoiced_price, gm_bin, fill = gm_bin)) +
+                     geom_density_ridges(
+                       show.legend = TRUE,
+                       alpha = 0.75) +
+                      scale_x_log10(labels = scales::label_number_si(accuracy = 0.01),
+                                    breaks = c(0.01, 0.1, 1, 10, 100, 1000, 10000)) +
                      labs( 
                        x = "Invoiced price",
                        y = "Number of rows"
@@ -558,7 +575,7 @@ This is with **linear scale**
                      theme(text = element_text(size=6),
                            plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "images/prices_by_gm_bins_equal_interval_linear.pdf", 
+  ggsave(filename = "images/prices_by_gm_bins_equal_interval_5_ridge.pdf", 
          width = 8,
          height = 8,
          units = "cm",

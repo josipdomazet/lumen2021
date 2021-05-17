@@ -37,11 +37,11 @@ dat %>%
   filter(between(gm, 0, 1)) %>% 
   filter(cost_of_part > 0) %>% 
   
-# item produced in North America, 
-# but bought in all tree customer regions
-# 330-0022, 414348
-
-```
+  # item produced in North America, 
+  # but bought in all tree customer regions
+  # 330-0022, 414348
+  
+  ```
 
 ## items with Cost of part equal to zero and positive
 ```{r}
@@ -71,7 +71,7 @@ dat %>%
             n_orders = n_distinct(order_num)) %>% 
   filter(yes_intercompany >= 1 & no_intercompany >= 1) ->
   items_yes_no_intercompany
-  
+
 dat %>% 
   filter(item_code %in% items_yes_no_intercompany$item_code) %>% 
   filter_var_percent(invoiced_price, 0.01) %>% 
@@ -84,21 +84,22 @@ dat %>%
             gm = median(gm, na.rm = TRUE)) %>% 
   ungroup() ->
   intercompany_items_price
-  
+
 {
   intercompany_items_price %>%
-  #filter(cost_of_part > 0) %>% 
-  filter_var_percent(gm, 0.05) %>% 
-  ggplot(aes(intercompany, gm, group = intercompany)) + 
-  geom_boxplot(aes(fill = intercompany), show.legend = FALSE) + 
-  labs(
-    x = "Intercompany",
-    y = "Gross margin"
-  ) +
-      theme(text = element_text(size=6),
+    #filter(cost_of_part > 0) %>% 
+    filter(gm > 0 & gm < 1) %>% 
+    filter_var_percent(gm, 0.001) %>% 
+    ggplot(aes(intercompany, gm, group = intercompany)) + 
+    geom_boxplot(aes(fill = intercompany), show.legend = FALSE) + 
+    labs(
+      x = "Intercompany",
+      y = "Gross margin"
+    ) +
+    theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-    ggsave(filename = "images/intercompany_gm.pdf", 
+  ggsave(filename = "images/intercompany_gm.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -113,18 +114,18 @@ quantity is increased)
 ```{r}
 {
   intercompany_items_price %>%
-  #filter(cost_of_part > 0) %>% 
-  filter_var_percent(gm, 0.05) %>% 
-  ggplot(aes(intercompany, gm, group = intercompany)) + 
-  geom_boxplot(aes(fill = intercompany), show.legend = FALSE) + 
-  labs(
-    x = "Intercompany",
-    y = "Gross margin"
-  ) +
-      theme(text = element_text(size=6),
+    #filter(cost_of_part > 0) %>% 
+    filter_var_percent(gm, 0.001) %>% 
+    ggplot(aes(intercompany, gm, group = intercompany)) + 
+    geom_boxplot(aes(fill = intercompany), show.legend = FALSE) + 
+    labs(
+      x = "Intercompany",
+      y = "Gross margin"
+    ) +
+    theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-    ggsave(filename = "images/intercompany_gm.pdf", 
+  ggsave(filename = "images/intercompany_gm.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -143,11 +144,11 @@ For price
   
   intercompany_items_price %>%
     filter(item_code %in% intercompany_items_price_clean$item_code)
-    group_by(item_code) %>% 
+  group_by(item_code) %>% 
     summarise(diff_price = (intercompany == "YES")*price -
                 (intercompany == "NO")*price)
   
-      
+  
   intercompany_items_price %>%
     filter(item_code %in% intercompany_items_price_clean$item_code) %>% 
     group_by(item_code) %>% 
@@ -155,24 +156,24 @@ For price
       ordered_qty[intercompany == "YES"]/ordered_qty[intercompany == "NO"],
       1/3, 3)) %>% 
     summarise(diff_price = (price[intercompany == "YES"] -
-                price[intercompany == "NO"]) / price[intercompany == "NO"]) %>% 
-      ungroup() %>% 
-      summarise(median_diff_price = median(diff_price, na.rm = TRUE))
-    
+                              price[intercompany == "NO"]) / price[intercompany == "NO"]) %>% 
+    ungroup() %>% 
+    summarise(median_diff_price = median(diff_price, na.rm = TRUE))
+  
   #filter(cost_of_part > 0) %>% 
   filter_var_percent(gm, 0.05) %>% 
-  ggplot(aes(ordered_qty, price, color = intercompany)) + 
-  geom_point() +
+    ggplot(aes(ordered_qty, price, color = intercompany)) + 
+    geom_point() +
     scale_x_log10() +
     facet_wrap(~ intercompany)
   labs(
     x = "Intercompany",
     y = "Gross margin"
   ) +
-      theme(text = element_text(size=6),
+    theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-    ggsave(filename = "images/intercompany_gm.pdf", 
+  ggsave(filename = "images/intercompany_gm.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -186,64 +187,70 @@ Intercompany - cherrypicking
 # 180936 GREAT
 # 309433 GREAT for effect of quantity discount
 {
-dat %>% 
-  filter(item_code == "309433") %>% 
-  filter(invoiced_qty_shipped > 0) %>% 
-  #group_by(intercompany) %>% 
-  #summarise(invoiced_price = mean(invoiced_price, na.rm = TRUE)) %>% 
-  ggplot(aes(invoice_date, invoiced_price)) +
-  geom_point(aes(color = intercompany, size = ordered_qty),
-             alpha= 0.35, show.legend = TRUE) +
-  geom_hline(dat=data.frame(yintercept = 0.357, intercompany = "NO"),
-             aes(yintercept = yintercept, color = intercompany),
-             linetype = 2, size = 0.7, show.legend = FALSE) +
-  geom_hline(dat=data.frame(yintercept = 0.136, intercompany = "YES"),
-             aes(yintercept = yintercept, color = intercompany),
-             linetype = 2, size = 0.7, show.legend = FALSE) +
-  labs(
-    x = "Invoice date",
-    y = "Invoiced price",
-    title = "Item code 180936"
-  ) +
-  theme(legend.position = "bottom",
-        text = element_text(size=6),
-          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))} %>% 
-      ggsave(filename = "images/intercompany_lower_price_item.pdf", 
+  dat %>% 
+    filter(item_code == "180936") %>% 
+    filter(invoiced_qty_shipped > 0) %>% 
+    filter(top_customer_group != "STAR") %>% 
+   # filter(gm > 0 & gm < 1) %>% 
+    #group_by(intercompany) %>% 
+    #summarise(invoiced_price = mean(invoiced_price, na.rm = TRUE)) %>% 
+    ggplot(aes(invoice_date, invoiced_price)) +
+    geom_point(aes(color = intercompany),
+               alpha= 0.55, show.legend = TRUE) +
+    geom_hline(dat=data.frame(yintercept = 0.357, intercompany = "NO"),
+               aes(yintercept = yintercept, color = intercompany),
+               linetype = 2, size = 0.7, show.legend = FALSE,
+               color = "black") +
+    geom_hline(dat=data.frame(yintercept = 0.136, intercompany = "YES"),
+               aes(yintercept = yintercept, color = intercompany),
+               linetype = 2, size = 0.7, show.legend = FALSE,
+               color = "black") +
+    labs(
+      x = "Invoice date",
+      y = "Invoiced price",
+      title = "Item code 180936"
+    ) +
+    theme(legend.position = "bottom",
+          text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm")) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1)))
+  } %>% 
+  ggsave(filename = "images/intercompany_lower_price_item.pdf", 
          width = 8,
          height = 8,
          units = "cm",
          dpi = 300,
          device = pdf)
-  
+
 ```
 
 
 *Economy of scale example*
 ```{r}
 {
-dat %>% 
-  filter_var_percent(invoiced_price, 0.025) %>% 
-  filter_var_percent(cost_of_part, 0.025) %>% 
-  filter_var_percent(ordered_qty, 0.025) %>% 
-  filter(cost_of_part >= 0) %>% 
-  select(product_family, product_group, order_line_num, ordered_qty, invoiced_price, cost_of_part) %>% 
-  distinct() %>% 
-  sample_frac(0.1) %>% 
-  #group_by(product_group) %>% 
-  ggplot(aes(ordered_qty, cost_of_part)) +
-  geom_point(aes(alpha = product_family), color = hue_pal()(2)[2],
-             show.legend = FALSE, size = 0.5) +
-  facet_wrap(~ product_family, scale = "free") +
-  scale_alpha_manual(values = c("PF000" = 0.6, "PF001" = 0.025, "PF002" = 0.05)) +
-  labs(
-    x = "Ordered quantity",
-    y = "Cost of part"
-  ) +
-      theme(text = element_text(size=6),
-         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm")) +
+  dat %>% 
+    filter_var_percent(invoiced_price, 0.025) %>% 
+    filter_var_percent(cost_of_part, 0.025) %>% 
+    filter_var_percent(ordered_qty, 0.025) %>% 
+    filter(cost_of_part >= 0) %>% 
+    select(product_family, product_group, order_line_num, ordered_qty, invoiced_price, cost_of_part) %>% 
+    distinct() %>% 
+    sample_frac(0.1) %>% 
+    #group_by(product_group) %>% 
+    ggplot(aes(ordered_qty, cost_of_part)) +
+    geom_point(aes(alpha = product_family), color = hue_pal()(2)[2],
+               show.legend = FALSE, size = 0.5) +
+    facet_wrap(~ product_family, scale = "free") +
+    scale_alpha_manual(values = c("PF000" = 0.6, "PF001" = 0.025, "PF002" = 0.05)) +
+    labs(
+      x = "Ordered quantity",
+      y = "Cost of part"
+    ) +
+    theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm")) +
     scale_x_continuous(label = scales::label_number_si())
 } %>% 
-          ggsave(filename = "images/economy_of_scale_by_pf.pdf", 
+  ggsave(filename = "images/economy_of_scale_by_pf.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -259,7 +266,7 @@ dat %>%
   ggplot(aes(ordered_qty, cost_of_part)) +
   geom_point(aes(color = customer_region)) + 
   facet_wrap(~ item_code, scale = "free")
-  
+
 ```
 
 
@@ -294,7 +301,7 @@ dat %>%
 
 ```{r}
 dat %>% 
-    filter(between(gm, 0, 1)) %>% 
+  filter(between(gm, 0, 1)) %>% 
   filter(cost_of_part > 0) %>% 
   mutate(profit = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
   filter_var_percent(profit, 0.01) %>% 
@@ -345,25 +352,25 @@ dat %>%
   filter(!is.na(customer_region)) -> avpu_by_customer_region
 
 {
-avpu_by_customer_region %>% 
-  mutate(customer_region = fct_reorder(customer_region, arpu)) %>% 
-  ggplot(aes(arpu, customer_region, fill = customer_region)) +
-  geom_col(width = 0.5,
-           show.legend = FALSE) +
+  avpu_by_customer_region %>% 
+    mutate(customer_region = fct_reorder(customer_region, arpu)) %>% 
+    ggplot(aes(arpu, customer_region, fill = customer_region)) +
+    geom_col(width = 0.5,
+             show.legend = FALSE) +
     labs(
-    x = "Average revenue per user (AVPU)",
-    y = "Customer region"
-  ) +
-      theme(text = element_text(size=6),
+      x = "Average revenue per user (AVPU)",
+      y = "Customer region"
+    ) +
+    theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 2.2, 2, 2), "mm")) +
     scale_fill_manual(
-    values = c("Europe" = hue_pal()(4)[1],
-               "Asia" = hue_pal()(4)[2],
-               "North America" = hue_pal()(4)[3],
-               "(Missing)" = hue_pal()(4)[4]
-    ))
+      values = c("Europe" = hue_pal()(4)[1],
+                 "Asia" = hue_pal()(4)[2],
+                 "North America" = hue_pal()(4)[3],
+                 "(Missing)" = hue_pal()(4)[4]
+      ))
 } %>% 
-            ggsave(filename = "images/arpu_customer_region.pdf", 
+  ggsave(filename = "images/arpu_customer_region.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -388,20 +395,20 @@ dat %>%
   filter(!is.na(customer_region)) -> avpu_by_customer_region_and_industry
 
 {
-avpu_by_customer_region_and_industry %>% 
-  mutate(customer_region = fct_reorder(customer_region, arpu)) %>% 
+  avpu_by_customer_region_and_industry %>% 
+    mutate(customer_region = fct_reorder(customer_region, arpu)) %>% 
     mutate(customer_industry = factor(customer_industry,
                                       levels = sort(customer_industry))) %>% 
-  ggplot(aes(customer_region, arpu, fill = customer_industry)) +
-  geom_col(
+    ggplot(aes(customer_region, arpu, fill = customer_industry)) +
+    geom_col(
       width = 0.5) +
     labs(
-    y = "AVPU percentage",
-    x = "Customer region"
-  ) +
+      y = "AVPU percentage",
+      x = "Customer region"
+    ) +
     scale_y_continuous(labels = scales::percent) +
     guides(fill = guide_legend(reverse = T, nrow = 2)) +
-      theme(text = element_text(size=6),
+    theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 2.2, 2, 2), "mm"),
           legend.position = "top",
           legend.text = element_text(size = 3),
@@ -410,7 +417,7 @@ avpu_by_customer_region_and_industry %>%
           legend.key.width= unit(0.45, 'cm')) +
     labs(fill = "Customer industry")
 }  %>% 
-         ggsave(filename = "images/arpu_customer_region_and_industry.pdf", 
+  ggsave(filename = "images/arpu_customer_region_and_industry.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -418,4 +425,104 @@ avpu_by_customer_region_and_industry %>%
          device = pdf)
 ```
 
+STAR customer by region
+```{r}
+{
+  dat %>% 
+    filter(top_customer_group == "STAR") %>% 
+    group_by(customer_region) %>% 
+    summarise(n = n_distinct(customer_id)) %>% 
+    mutate(customer_region = fct_reorder(customer_region, n)) %>% 
+    ggplot(aes(n, customer_region, fill = customer_region, color = customer_region)) +
+    geom_segment(aes(yend = customer_region, xend = 0),
+                 show.legend = FALSE) +
+    geom_point(size = 2, show.legend = FALSE) +
+    scale_fill_manual(
+      values = c("Europe" = hue_pal()(4)[1],
+                 "Asia" = hue_pal()(4)[2],
+                 "North America" = hue_pal()(4)[3],
+                 "(Missing)" = hue_pal()(4)[4]
+      )) +
+    scale_color_manual(
+      values = c("Europe" = hue_pal()(4)[1],
+                 "Asia" = hue_pal()(4)[2],
+                 "North America" = hue_pal()(4)[3],
+                 "(Missing)" = hue_pal()(4)[4]
+      )) +
+    labs(
+      x = "Number of STAR customers",
+      y = NULL 
+    ) +
+    theme(text = element_text(size=6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+    ggsave(filename = "images/star_by_region.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+  
+  
+Compare star and non-star quantities
+```{r}
+{
+  dat %>% 
+  #  filter(top_customer_group == "STAR") %>% 
+  filter(gm > 0 & gm < 1) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
+  filter(ordered_qty > 0) %>% 
+  filter_var_percent(ordered_qty, 0.001) %>% 
+  #group_by(top_customer_group) %>% 
+  #summarise(mean(ordered_qty, na.rm=T))
+  ggplot(aes(top_customer_group, 
+             ordered_qty, group = top_customer_group, fill = top_customer_group)) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(
+    x  = "Top customer group",
+    y  = "Ordered Quantity"
+  ) +
+  scale_y_log10(labels = scales::label_number_si())  +
+        theme(text = element_text(size=6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+  } %>% 
+    ggsave(filename = "images/star_by_quantity.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
 
+```{r}
+{
+  dat %>% 
+  #  filter(top_customer_group == "STAR") %>% 
+  filter(gm > 0 & gm < 1) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
+  filter(ordered_qty > 0) %>% 
+  filter_var_percent(ordered_qty, 0.001) %>% 
+  #group_by(top_customer_group) %>% 
+  #summarise(mean(ordered_qty, na.rm=T))
+  mutate(revenue = (invoiced_price - cost_of_part) * invoiced_qty_shipped) %>% 
+  ggplot(aes(top_customer_group, 
+             revenue, group = top_customer_group, fill = top_customer_group)) +
+  geom_boxplot(show.legend = FALSE) +
+  labs(
+    x  = "Top customer group",
+    y  = "Revenue of invoice line"
+  ) +
+  scale_y_log10(labels = scales::label_number_si())  +
+        theme(text = element_text(size=6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+  } %>% 
+    ggsave(filename = "images/star_by_revenue.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+  

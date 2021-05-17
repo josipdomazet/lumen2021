@@ -9,6 +9,8 @@ editor_options:
 
 
 ## Packages
+
+The following packages are used in all of RMarkdown files.
 ```{r}
 library("tidyverse")
 library("lubridate")
@@ -19,7 +21,7 @@ library("ggrepel")
 theme_set(theme_bw())
 ```
 
-## Data loading
+## Data set loading
 ```{r}
 dat <- read.csv("./data/LUMEN_DS_corrected.csv",
                 header= TRUE,
@@ -71,9 +73,9 @@ factor_colnames <- c("manufacturing_region",
                      "product_family",
                      "product_group",
                      "make_vs_buy",
-                  #   "sales_channel_internal",
-                  #   "sales_channel_external",
-                  #   "sales_channel_grouping",
+                     "sales_channel_internal",
+                     "sales_channel_external",
+                     "sales_channel_grouping",
                      "sales_channel",
                      "invoice_num",
                      "invoice_line_num",
@@ -120,7 +122,7 @@ First thing to do is to check how many unique users, items, man. regions, man. l
   filter(name %in% c("order_num", "invoice_num", "invoice_line_num", "order_line_num")) %>% 
   mutate(name = fct_reorder(name, value)) %>% 
   ggplot(aes(value, name)) +
-  geom_col()
+  geom_col() +
   labs(
     x = "Number of unique values",
     y = "Column name"
@@ -198,10 +200,10 @@ First thing to do is to check how many unique users, items, man. regions, man. l
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
   ggsave(filename = "images/customers_by_region_star.pdf", 
-         width = 8,
-         height = 8,
+         width = 5,
+         height = 5,
          units = "cm",
-         dpi = 300,
+         dpi = 250,
          device = pdf)
 
 {
@@ -230,10 +232,10 @@ First thing to do is to check how many unique users, items, man. regions, man. l
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
   ggsave(filename = "images/customers_by_region_other.pdf", 
-         width = 8,
-         height = 8,
+         width = 5,
+         height = 5,
          units = "cm",
-         dpi = 300,
+         dpi = 250,
          device = pdf)
 ```
 
@@ -329,9 +331,8 @@ dat %>%
   dat %>% 
   mutate(across(starts_with("manufacturing"), ~ fct_explicit_na(.))) %>% 
   group_by(manufacturing_region) %>% 
-  summarise(n_lines = n_distinct(order_line_num)) %>%  
-  ungroup() %>% 
-  arrange(-n_lines)
+  tally() %>% 
+  arrange(desc(n))
 ```
 
 ### Order item lines by manufacturing region and location
@@ -340,19 +341,21 @@ n_order_lines_by_man_region_loc_plot <-
   dat %>% 
   mutate(across(starts_with("manufacturing"), ~ fct_explicit_na(.))) %>% 
   group_by(manufacturing_region, manufacturing_location_code) %>% 
-  summarise(n_lines = n_distinct(order_line_num)) %>%  
-  ungroup() %>% 
-  mutate(manufacturing_region = fct_reorder(manufacturing_region,-n_lines, sum)) %>% 
+ # summarise(n_lines = n_distinct(order_line_num)) %>%  
+#  ungroup() %>% 
+  tally() %>% 
+  mutate(n_lines = n) %>% 
+  mutate(manufacturing_region = fct_reorder(manufacturing_region,n_lines, sum)) %>% 
   mutate(manufacturing_location_code = reorder_within(manufacturing_location_code,
                                                       n_lines,
                                                       manufacturing_region)) %>% 
   ggplot(aes(n_lines, manufacturing_location_code, fill = manufacturing_region)) +
   geom_col() +
   scale_y_reordered() +
-  facet_wrap(~ manufacturing_region, scales = "free_y") +
+  facet_wrap(~ manufacturing_region, scales = "free_y", dir = "v") +
   guides(fill = FALSE) +
   labs(
-    x = "Number of order lines",
+    x = "Number of data set rows",
     y  = "Manufacturing location code"
   ) + 
   scale_fill_manual(
@@ -365,7 +368,7 @@ n_order_lines_by_man_region_loc_plot <-
   scale_x_continuous(minor_breaks = NULL,  labels =  scales::label_number_si()) 
 
 n_order_lines_by_man_region_loc_plot %>% 
-  ggsave(filename = "n_order_lines_by_man_region_loc.pdf", 
+  ggsave(filename = "images/n_order_lines_by_man_region_loc.pdf", 
          width = 11,
          height = 11,
          units = "cm",
