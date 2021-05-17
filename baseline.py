@@ -18,6 +18,10 @@ class Segment:
     def is_problematic(self):
         return self.duplicates
         
+    @property
+    def segment_id(self):
+        return self.leaf.node_id
+        
     def __str__(self):
         cutoffs = ', '.join(["{:.2f}".format(float(c)) for c in self.gm_cutoffs])
         return f"id: {self.leaf.node_id}, rows: {self.leaf.rows_count}, cutoffs:\n{cutoffs}, duplicates: {self.duplicates}, H == 0: {self.zero_entropy}"
@@ -52,7 +56,7 @@ class BaselineSegmentationTree:
 
     ZERO_ENTROPY_DELTA = 0.0001
 
-    def __init__(self, df, features, gm_column_name="gm", N=50):
+    def __init__(self, df, features, gm_column_name="gm", N=1000):
         self._gm_column_name = gm_column_name
         self.N = N
         self._current_node_id = 0
@@ -60,15 +64,13 @@ class BaselineSegmentationTree:
         self.segments = {}
         self.root = self._build(features, {}, df)
         
-    def predict(self, inputs):
-        outputs = []
-        for index, row in inputs.iterrows():
-            node = self.root
-            while not node.is_leaf:
-                feature_value = row[node.feature_name]
-                node = node.children[feature_value]
-            outputs.append(self.segments[node.node_id])
-        return outputs
+    def predict(self, input_row):
+        node = self.root
+        while not node.is_leaf:
+            feature_value = input_row[node.feature_name]
+            if feature_value not in node.children: return None
+            node = node.children[feature_value]
+        return self.segments[node.node_id]
         
     def _is_nan(self, value):
         return str(value) == "nan"
