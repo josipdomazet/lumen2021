@@ -7,7 +7,7 @@ ENCODING = "UTF-16"
 SEPARATOR = "|"
 NA_VALUES = "NaN"
 ROWS_LIMIT = None
-IMPUTE_COST_OF_PART = False
+IMPUTE_COST_OF_PART = True
 
 manufacturing_region = "manufacturing_region"
 manufacturing_location_code = "manufacturing_location_code"
@@ -98,28 +98,10 @@ for col in DATE_COLUMNS:
 
 
 if IMPUTE_COST_OF_PART:
-    indices = df.index
-    problem_indices = indices[df[cost_of_part] == 0]
-    problem_indices = problem_indices.tolist()
-    
-    for i, index in enumerate(problem_indices):
-        print(i, len(problem_indices))
-        problem_value = df.loc[index, :]
-        problem_item_code = problem_value[item_code]
-        last_value_cost_of_part = df[
-            (df[item_code] == problem_item_code)
-            & (df[invoice_date] <= problem_value[invoice_date])
-            & (df[cost_of_part] != 0)
-        ]
-        if len(last_value_cost_of_part) > 0:
-            max_invoice_date = last_value_cost_of_part[invoice_date].max()
-            last_cost = (
-                last_value_cost_of_part.groupby(by=invoice_date).mean().reset_index()
-            )
-            df.loc[index, [cost_of_part]] = last_cost[cost_of_part][
-                last_cost[invoice_date] == max_invoice_date
-            ].values[0]
-
+    df[cost_of_part][df[cost_of_part] == 0] = None 
+    df.sort_values(by=[item_code, invoice_date], inplace=True)
+    df[cost_of_part] = df.groupby(by=[item_code]).cost_of_part.fillna(method='ffill')
+    df[cost_of_part][df[cost_of_part].isna()] = 0
     df[gm] = (df[invoiced_price] - df[cost_of_part]) / df[invoiced_price]
 
 
