@@ -99,7 +99,7 @@ dat %>%
     theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "plots/intercompany_gm.pdf", 
+  ggsave(filename = "..plots/intercompany_gm.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -125,7 +125,7 @@ quantity is increased)
     theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "plots/intercompany_gm.pdf", 
+  ggsave(filename = "..plots/intercompany_gm.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -173,7 +173,7 @@ For price
     theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "plots/intercompany_gm.pdf", 
+  ggsave(filename = "..plots/intercompany_gm.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -215,7 +215,7 @@ Intercompany - cherrypicking
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm")) +
     guides(colour = guide_legend(override.aes = list(alpha = 1)))
   } %>% 
-  ggsave(filename = "plots/intercompany_lower_price_item.pdf", 
+  ggsave(filename = "..plots/intercompany_lower_price_item.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -250,7 +250,7 @@ Intercompany - cherrypicking
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm")) +
     scale_x_continuous(label = scales::label_number_si())
 } %>% 
-  ggsave(filename = "plots/economy_of_scale_by_pf.pdf", 
+  ggsave(filename = "..plots/economy_of_scale_by_pf.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -370,7 +370,7 @@ dat %>%
                  "(Missing)" = hue_pal()(4)[4]
       ))
 } %>% 
-  ggsave(filename = "plots/arpu_customer_region.pdf", 
+  ggsave(filename = "..plots/arpu_customer_region.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -417,7 +417,7 @@ dat %>%
           legend.key.width= unit(0.45, 'cm')) +
     labs(fill = "Customer industry")
 }  %>% 
-  ggsave(filename = "plots/arpu_customer_region_and_industry.pdf", 
+  ggsave(filename = "..plots/arpu_customer_region_and_industry.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -456,7 +456,7 @@ STAR customer by region
     theme(text = element_text(size=6),
           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-    ggsave(filename = "plots/star_by_region.pdf", 
+    ggsave(filename = "..plots/star_by_region.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -487,7 +487,7 @@ Compare star and non-star quantities
         theme(text = element_text(size=6),
           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
   } %>% 
-    ggsave(filename = "plots/star_by_quantity.pdf", 
+    ggsave(filename = "..plots/star_by_quantity.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -517,7 +517,7 @@ Compare star and non-star quantities
         theme(text = element_text(size=6),
           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
   } %>% 
-    ggsave(filename = "plots/star_by_revenue.pdf", 
+    ggsave(filename = "..plots/star_by_revenue.pdf", 
          width = 8,
          height = 8,
          units = "cm",

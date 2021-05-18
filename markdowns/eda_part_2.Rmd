@@ -97,7 +97,7 @@ manufacturing cost (cost_of_part == 0).
     theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-    ggsave(filename = "plots/popular_items.pdf", 
+    ggsave(filename = "..plots/popular_items.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -206,7 +206,7 @@ dat %>%
     theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "plots/make_vs_buy.pdf", 
+  ggsave(filename = "..plots/make_vs_buy.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -232,7 +232,7 @@ dat %>%
   theme(text = element_text(size=6),
   plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-      ggsave(filename = "plots/born_on_date.pdf", 
+      ggsave(filename = "..plots/born_on_date.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -275,7 +275,7 @@ dat %>%
     theme(text = element_text(size=6),
          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "plots/price_raw.pdf", 
+  ggsave(filename = "..plots/price_raw.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -304,7 +304,7 @@ Filter + outliers
     theme(text = element_text(size=6),
           plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "plots/price_filtered_linear.pdf", 
+        ggsave(filename = "..plots/price_filtered_linear.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -335,7 +335,7 @@ Filter + outliers
   theme(text = element_text(size=6),
         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "plots/price_filtered_log.pdf", 
+        ggsave(filename = "..plots/price_filtered_log.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -363,7 +363,7 @@ Filter + outliers
   theme(text = element_text(size=6),
         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
   } %>% 
-        ggsave(filename = "plots/cost_of_part_filtered_log.pdf", 
+        ggsave(filename = "..plots/cost_of_part_filtered_log.pdf", 
          width = 6,
          height = 6,
          units = "cm",
@@ -446,7 +446,7 @@ Filter + outliers
     theme(text = element_text(size=6),
          plot.margin=grid::unit(c(2, 1, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "plots/cost_components_ridge.pdf", 
+        ggsave(filename = "..plots/cost_components_ridge.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -510,7 +510,7 @@ Histogram
     theme(text = element_text(size=6),
           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-    ggsave(filename = "plots/gm_between_0_1.pdf", 
+    ggsave(filename = "..plots/gm_between_0_1.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -539,7 +539,7 @@ very big count at value of 1.00
   theme(text = element_text(size=6),
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-          ggsave(filename = "plots/rows_with_gm_1.pdf", 
+          ggsave(filename = "..plots/rows_with_gm_1.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -575,7 +575,7 @@ This is with **linear scale**
                      theme(text = element_text(size=6),
                            plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "plots/prices_by_gm_bins_equal_interval_5_ridge.pdf", 
+  ggsave(filename = "..plots/prices_by_gm_bins_equal_interval_5_ridge.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -604,7 +604,7 @@ This is for **log scale**
                      theme(text = element_text(size=6),
                            plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-  ggsave(filename = "plots/prices_by_gm_bins_equal_interval_log.pdf", 
+  ggsave(filename = "..plots/prices_by_gm_bins_equal_interval_log.pdf", 
          width = 8,
          height = 8,
          units = "cm",
