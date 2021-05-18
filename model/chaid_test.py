@@ -1,8 +1,8 @@
 from dataframe import *
 from chaid import SuperCHAID, SuperCHAIDVisualizer
 
-supernode_features = [manufacturing_region, product_family]
-features_list = [customer_region, intercompany, make_vs_buy]
+supernode_features = [manufacturing_region]
+features_list = [customer_region, product_family, make_vs_buy]
 dependant_variable = gm
 
 super_tree = SuperCHAID(supernode_features, features_list, dependant_variable)
