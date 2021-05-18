@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 manufacturing_dict = {'N7': 'North America',
                       'N13': 'Asia',
@@ -62,6 +63,7 @@ product_dict = {'PC026': 'PF002',
                 'PC024': 'PF002'}
 
 make_cols = ["MANUFACTURED", "RAW MATERIAL", "FINISHED GOODS"]
+not_allowed_make_vs_buy = ["RAW MATERIAL", "BUY - CUST. SUPPLIED", "BUY - INTERPLNT TRNS", "PURCHASED (RAW)"]
 
 
 def determine_bucket(ordered_qty):
@@ -77,37 +79,82 @@ def determine_bucket(ordered_qty):
     elif ordered_qty > 10000:
         return labels[4]
     else:
-        return None
+        return np.nan
+
+
+def check_is_missing(variable, type="numerical"):
+    if variable == "" or variable == "NA" or variable == "NAN" or variable == "NaN":
+        return np.nan
+    else:
+        if type == "numerical":
+            return float(variable)
+        else:
+            return variable
+
+
+def check_preconditions(cost_of_part, invoiced_price, invoiced_qty_shipped, ordered_qty, intercompany, customer_id,
+                        make_vs_buy, gm):
+    if cost_of_part <= 0.0:
+        return True, "Cost of part cannot be <= 0!"
+    if invoiced_price <= 0:
+        return True, "Invoiced price cannot be <= 0!"
+    if invoiced_qty_shipped <= 0:
+        return True, "Invoiced quantity shipped cannot be <= 0!"
+    if ordered_qty <= 0:
+        return True, "Ordered quantity cannot be <= 0!"
+    if intercompany == "YES":
+        return True, "Intercompany cannot be 'YES'!"
+    if customer_id < 0:
+        return True, "Customer ID cannot be negative!"
+    if make_vs_buy in not_allowed_make_vs_buy:
+        return True, make_vs_buy + " value not allowed!"
+    if gm >= 1.0 or gm <= 0.0:
+        return True, "Gross margin can only be defined in range (0,1)!"
+    return False, ""
 
 
 def create_features(json_payload):
-    manufacturing_region = json_payload["manufacturing_region"]
-    manufacturing_location_code = json_payload["manufacturing_location_code"]
-    customer_industry = json_payload["customer_industry"]
-    product_family = json_payload["product_family"]
-    product_group = json_payload["product_group"]
-    make_vs_buy = json_payload["make_vs_buy"]
-    top_customer_group = json_payload["top_customer_group"]
-    customer_region = json_payload["customer_region"]
-    customer_first_invoice_date = json_payload["customer_first_invoice_date"]
-    ordered_qty = float(json_payload["ordered_qty"])
-    gm = float(json_payload["gm"])
+    manufacturing_region = check_is_missing(json_payload["manufacturing_region"], type="other")
+    manufacturing_location_code = check_is_missing(json_payload["manufacturing_location_code"], type="other")
+    customer_industry = check_is_missing(json_payload["customer_industry"], type="other")
+    product_family = check_is_missing(json_payload["product_family"], type="other")
+    product_group = check_is_missing(json_payload["product_group"], type="other")
+    make_vs_buy = check_is_missing(json_payload["make_vs_buy"], type="other")
+    top_customer_group = check_is_missing(json_payload["top_customer_group"], type="other")
+    customer_region = check_is_missing(json_payload["customer_region"], type="other")
+    customer_first_invoice_date = check_is_missing(json_payload["customer_first_invoice_date"], type="other")
+    ordered_qty = check_is_missing(json_payload["ordered_qty"])
+    gm = check_is_missing(json_payload["gm"])
+    cost_of_part = check_is_missing(json_payload["cost_of_part"])
+    invoiced_price = check_is_missing(json_payload["invoiced_price"])
+    invoiced_qty_shipped = check_is_missing(json_payload["invoiced_qty_shipped"])
+    intercompany = check_is_missing(json_payload["intercompany"], type="other")
+    customer_id = check_is_missing(json_payload["customer_id"])
 
-    if manufacturing_region is None and manufacturing_location_code is not None:
+    fail, message = check_preconditions(cost_of_part, invoiced_price, invoiced_qty_shipped, ordered_qty, intercompany,
+                                        customer_id, make_vs_buy, gm)
+
+    if fail:
+        return None, message
+
+    if manufacturing_region is np.nan and manufacturing_location_code is not np.nan:
         if manufacturing_location_code in manufacturing_dict.keys():
             manufacturing_region = manufacturing_dict[manufacturing_location_code]
 
-    if product_family is None and product_group is not None:
+    if product_family is np.nan and product_group is not np.nan:
         if product_group in product_dict.keys():
             product_family = product_dict[product_group]
 
-    if make_vs_buy is not None:
+    if make_vs_buy is not np.nan:
         make_vs_buy = "MAKE" if make_vs_buy in make_cols else "BUY"
 
     if top_customer_group == "STAR":
         customer_region = "STAR"
 
-    new_old_customer = "NEW" if int(customer_first_invoice_date.split("-")[0]) >= 2015 else "OLD"
+    if customer_first_invoice_date is not np.nan:
+        new_old_customer = "NEW" if int(customer_first_invoice_date.split("-")[0]) >= 2015 else "OLD"
+    else:
+        new_old_customer = np.nan
 
     ordered_qty_bucket = determine_bucket(ordered_qty)
 
@@ -136,9 +183,9 @@ if __name__ == "__main__":
                     "sales_channel_grouping": "", "invoice_date": "2018-09-29", "invoice_num": "16964668",
                     "invoice_line_num": "18581670", "order_date": "2018-07-06", "order_num": "513470",
                     "order_line_num": "15736930", "invoiced_qty_shipped": "4000.000000", "ordered_qty": "4000.000000",
-                    "invoiced_price": "2.7800", "invoiced_price_tx": "2.7800", "cost_of_part": ".0000",
+                    "invoiced_price": "2.7800", "invoiced_price_tx": "2.7800", "cost_of_part": "1.0000",
                     "material_cost_of_part": ".0000", "labor_cost_of_part": ".0000", "overhead_cost_of_part": ".0000",
-                    "gm": "1.00000000000", "num_of_unique_products_on_a_quote": "6"}
+                    "gm": "0.25", "num_of_unique_products_on_a_quote": "6"}
 
     df = create_features(json_payload)
     print(df)
