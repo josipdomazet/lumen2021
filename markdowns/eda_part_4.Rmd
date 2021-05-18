@@ -74,7 +74,7 @@ dat %>%
 
 dat %>% 
   filter(item_code %in% items_yes_no_intercompany$item_code) %>% 
-  filter_var_percent(invoiced_price, 0.01) %>% 
+  filter_var_percentile(invoiced_price, 0.01) %>% 
   filter(invoiced_qty_shipped > 0) %>% 
   filter(invoiced_price > 0) %>%  # zasto se ovo dogada?
   group_by(item_code, intercompany) %>% 
@@ -89,7 +89,7 @@ dat %>%
   intercompany_items_price %>%
     #filter(cost_of_part > 0) %>% 
     filter(gm > 0 & gm < 1) %>% 
-    filter_var_percent(gm, 0.001) %>% 
+    filter_var_percentile(gm, 0.001) %>% 
     ggplot(aes(intercompany, gm, group = intercompany)) + 
     geom_boxplot(aes(fill = intercompany), show.legend = FALSE) + 
     labs(
@@ -115,7 +115,7 @@ quantity is increased)
 {
   intercompany_items_price %>%
     #filter(cost_of_part > 0) %>% 
-    filter_var_percent(gm, 0.001) %>% 
+    filter_var_percentile(gm, 0.001) %>% 
     ggplot(aes(intercompany, gm, group = intercompany)) + 
     geom_boxplot(aes(fill = intercompany), show.legend = FALSE) + 
     labs(
@@ -161,7 +161,7 @@ For price
     summarise(median_diff_price = median(diff_price, na.rm = TRUE))
   
   #filter(cost_of_part > 0) %>% 
-  filter_var_percent(gm, 0.05) %>% 
+  filter_var_percentile(gm, 0.05) %>% 
     ggplot(aes(ordered_qty, price, color = intercompany)) + 
     geom_point() +
     scale_x_log10() +
@@ -229,9 +229,9 @@ Intercompany - cherrypicking
 ```{r}
 {
   dat %>% 
-    filter_var_percent(invoiced_price, 0.025) %>% 
-    filter_var_percent(cost_of_part, 0.025) %>% 
-    filter_var_percent(ordered_qty, 0.025) %>% 
+    filter_var_percentile(invoiced_price, 0.025) %>% 
+    filter_var_percentile(cost_of_part, 0.025) %>% 
+    filter_var_percentile(ordered_qty, 0.025) %>% 
     filter(cost_of_part >= 0) %>% 
     select(product_family, product_group, order_line_num, ordered_qty, invoiced_price, cost_of_part) %>% 
     distinct() %>% 
@@ -304,7 +304,7 @@ dat %>%
   filter(between(gm, 0, 1)) %>% 
   filter(cost_of_part > 0) %>% 
   mutate(profit = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
-  filter_var_percent(profit, 0.01) %>% 
+  filter_var_percentile(profit, 0.01) %>% 
   sample_frac(0.1) %>% 
   filter(num_of_unique_products_on_a_quote > 0) %>% 
   ggplot(aes(num_of_unique_products_on_a_quote, profit)) +
@@ -387,7 +387,7 @@ dat %>%
   filter(invoiced_qty_shipped > 0) %>% 
   mutate(revenue = gm * invoiced_price * invoiced_qty_shipped) %>% 
   group_by(customer_region, customer_industry) %>% 
-  filter_var_percent(revenue, 0.01) %>%
+  filter_var_percentile(revenue, 0.01) %>%
   summarise(total_revenue = sum(revenue),
             arpu = total_revenue / n_distinct(customer_id),
             n_users = n_distinct(customer_id)) %>% 
@@ -473,7 +473,7 @@ Compare star and non-star quantities
   filter(gm > 0 & gm < 1) %>% 
   filter(invoiced_qty_shipped > 0) %>% 
   filter(ordered_qty > 0) %>% 
-  filter_var_percent(ordered_qty, 0.001) %>% 
+  filter_var_percentile(ordered_qty, 0.001) %>% 
   #group_by(top_customer_group) %>% 
   #summarise(mean(ordered_qty, na.rm=T))
   ggplot(aes(top_customer_group, 
@@ -502,7 +502,7 @@ Compare star and non-star quantities
   filter(gm > 0 & gm < 1) %>% 
   filter(invoiced_qty_shipped > 0) %>% 
   filter(ordered_qty > 0) %>% 
-  filter_var_percent(ordered_qty, 0.001) %>% 
+  filter_var_percentile(ordered_qty, 0.001) %>% 
   #group_by(top_customer_group) %>% 
   #summarise(mean(ordered_qty, na.rm=T))
   mutate(revenue = (invoiced_price - cost_of_part) * invoiced_qty_shipped) %>% 

@@ -578,7 +578,7 @@ dat %>%
     filter(gm > 0 & gm < 1) %>% 
     filter(invoiced_qty_shipped > 0) %>% 
   mutate(revenue = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
-  filter_var_percent(revenue, 0.001) %>%  
+  filter_var_percentile(revenue, 0.001) %>%  
   ggplot(aes(revenue)) +
   geom_histogram(
     bins = 50,
@@ -614,8 +614,8 @@ dat %>%
     filter(cost_of_part > 0) %>%
     filter(invoiced_qty_shipped > 0) %>% 
   mutate(profit = invoiced_qty_shipped * (invoiced_price - cost_of_part)) %>% 
-  filter_var_percent(profit, 0.01) %>%  
-  filter_var_percent(invoiced_qty_shipped, 0.01) %>% 
+  filter_var_percentile(profit, 0.01) %>%  
+  filter_var_percentile(invoiced_qty_shipped, 0.01) %>% 
   sample_frac(0.1) %>% 
   ggplot(aes(gm, profit)) +
   geom_hex() +
@@ -973,7 +973,7 @@ dat %>%
     between(invoiced_price, 100, 1000) ~ "between 100 and 1000",
     invoiced_price > 1000 ~ "more than 1000"
   )) %>%
-    filter_var_percent(cost_of_part, 0.01) %>% 
+    filter_var_percentile(cost_of_part, 0.01) %>% 
   group_by(price_bin, item_code) %>% 
   summarise(cost_of_part = mean(cost_of_part, na.rm = TRUE),
             shipped_qty = mean(invoiced_qty_shipped, na.rm = TRUE),
@@ -1051,7 +1051,7 @@ dat %>%
   ) %>% 
   mutate(profit = (invoiced_qty_shipped *
                             (invoiced_price - cost_of_part))) %>% 
-  filter_var_percent(profit, 0.05) %>% 
+  filter_var_percentile(profit, 0.05) %>% 
   mutate(customer_age = fct_reorder(customer_age, profit)) %>% 
   ggplot(aes(profit, customer_age)) +
   geom_density_ridges()
@@ -1091,8 +1091,8 @@ dat %>%
 dat %>% 
   mutate(profit = (invoiced_qty_shipped *
                             (invoiced_price - cost_of_part))) %>% 
-  filter_var_percent(profit, 0.05) %>% 
-  filter_var_percent(gm, 0.05) %>% 
+  filter_var_percentile(profit, 0.05) %>% 
+  filter_var_percentile(gm, 0.05) %>% 
   #mutate(customer_industry = fct_reorder(customer_industry, profit)) %>% 
   ggplot(aes(gm, profit)) +
   geom_point()

@@ -20,6 +20,8 @@ library("scales")
 library("ggridges")
 library("ggrepel")
 theme_set(theme_bw())
+
+source("../r-util/helper_functions.R")
 ```
 
 ## Data set loading

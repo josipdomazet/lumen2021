@@ -33,7 +33,9 @@ clean <- function(tbl) {
   
 }
 
-filter_var_percent <- function(tbl, var, percent) {
+#' Filter data set inside [percentile, 1-percentile]
+#' @param percentile - value in rage [0.00, 1.00]
+filter_var_percentile <- function(tbl, var, percentile) {
   tbl %>% filter(between({{ var }},
                          quantile({{ var }}, percent, na.rm = TRUE), 
                          quantile({{ var  }}, 1 - percent, na.rm =  TRUE)))
