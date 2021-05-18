@@ -37,3 +37,4 @@ threadpoolctl==2.1.0
 toml==0.10.2
 treelib==1.6.1
 urllib3==1.26.4
+Flask==2.0.0
