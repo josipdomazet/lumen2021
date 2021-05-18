@@ -1,0 +1,473 @@
+---
+title: "Dynamic Deal Scoring EDA"
+author: "Snoopy Quartet"
+date: "24 March 2021"
+output: html_document
+---
+
+# Import libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(GGally)
+library(lubridate)
+library(dplyr)
+library(gridExtra)
+library(Cairo)
+library(grid)
+library(reshape2)
+library(RColorBrewer)
+library(kableExtra)
+library(scales)
+library(grid)
+library(schoolmath)
+library(ggridges)
+```
+
+## Define quantile filtering function
+```{r}
+filter_by_quantile <- function(param, lower=0.01, upper=0.99) {
+    return(quantile(param, lower, na.rm=T) < param & param < quantile(param, upper, na.rm=T))
+}
+```
+
+## Load data set into memory
+```{r}
+df <- read.csv("../dataset/LUMEN_DS.csv",                 
+               header=TRUE,
+               stringsAsFactors=FALSE,
+               sep="|",
+               quote="",
+               encoding="UCS-2LE",
+               fileEncoding="UCS-2LE")
+```
+
+## Get rid of qutoes
+```{r}
+df <- as.data.frame(sapply(df, function(x) gsub("\"", "", x)))
+```
+
+## Change column names, define types of columns 
+```{r}
+colnames(df) <- c("manufacturing_region", "manufacturing_location_code", "intercompany", "customer_id", "customer_industry", "customer_region", "customer_first_invoice_date", "top_customer_group", "item_code", "product_family", "product_group", "price_last_modified_date_in_the_erp", "born_on_date", "make_vs_buy", "sales_channel_internal", "sales_channel_external", "sales_channel_grouping", "invoice_date", "invoice_num", "invoice_line_num", "order_date", "order_num", "order_line_num", "invoiced_qty_shipped", "ordered_qty", "invoiced_price", "invoiced_price_tx", "cost_of_part", "material_cost_of_part", "labor_cost_of_part", "overhead_cost_of_part", "gm", "num_of_unique_products_on_a_quote")
+
+factor_cols <- c("manufacturing_region", "manufacturing_location_code", "intercompany", "customer_id", "customer_industry", "customer_region", "top_customer_group", "item_code", "product_family", "product_group", "make_vs_buy", "sales_channel_internal", "sales_channel_external", "sales_channel_grouping", "invoice_num", "invoice_line_num", "order_num", "order_line_num")
+
+date_cols <- c("born_on_date", "invoice_date", "order_date")
+datetime_cols <- c("customer_first_invoice_date", "price_last_modified_date_in_the_erp")
+
+numeric_cols <- c("invoiced_qty_shipped", "ordered_qty", "invoiced_price", "invoiced_price_tx", "cost_of_part", "material_cost_of_part", "labor_cost_of_part", "overhead_cost_of_part", "gm", "num_of_unique_products_on_a_quote")
+
+df <- df %>% 
+    mutate(across(everything(), ~na_if(., "NaN"))) %>% 
+    mutate(across(.fns = ~na_if(., ""))) %>%
+    mutate(across(all_of(factor_cols), as.factor),
+           across(all_of(date_cols), lubridate::ymd),
+           across(all_of(datetime_cols), lubridate::date),
+           across(all_of(numeric_cols), as.character),
+           across(all_of(numeric_cols), as.numeric))
+```
+
+## Get general information about data set
+```{r}
+head(df)
+```
+
+```{r}
+glimpse(df)
+```
+
+## Dataset irregularities
+
+### Missing values
+```{r}
+df %>%
+    summarise_all(funs(sum(is.na(.)))) %>% 
+    melt -> NA_counts_df
+
+NA_counts_df %>% 
+    ggplot(aes(x=reorder(variable, -value), y=value, colour=variable)) +
+    geom_bar(stat="identity", color="blue", fill="gray", alpha=0.5) + 
+    theme_bw() + 
+    theme(axis.text.x=element_text(angle=90, vjust=0.5, size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+          text=element_text(size=20)) + 
+    labs(x="Column name", y="Missing values count") +
+    scale_y_continuous(labels=comma_format(big.mark=",", decimal.mark = "."), breaks=seq(0, max(NA_counts_df$value) + 100000, 100000)) -> plot 
+
+ggsave("../plots/NA_distribution.png", plot, width = 15, height = 10)
+```
+
+### price_last_modified_in_the_erp percentage of missing rows
+```{r}
+count <- NA_counts_df %>% filter(variable == "price_last_modified_date_in_the_erp") %>% select(value) %>% pull
+count / nrow(df)
+```
+
+### Negative or zero values
+```{r}
+df %>% select(cost_of_part) %>% drop_na %>%  filter(cost_of_part < 0) %>% pull %>% length %>% paste0("cost_of_part negative: ", .)
+
+df %>% select(cost_of_part) %>% drop_na %>%  filter(cost_of_part == 0) %>% pull %>% length %>% paste0("cost_of_part zero: ", .)
+
+df %>% select(invoiced_price) %>% drop_na %>%  filter(invoiced_price < 0) %>% pull %>% length %>% paste0("invoiced_price negative: ", .)
+
+df %>% select(invoiced_price) %>% drop_na %>%  filter(invoiced_price == 0) %>% pull %>% length %>% paste0("invoiced_price zero: ", .)
+
+df %>% select(gm) %>% drop_na %>% filter(gm < 0) %>% pull %>% length %>% paste0("gm negative: ", .)
+
+df %>% select(gm) %>% drop_na %>%  filter(gm > 1) %>% pull %>% length %>% paste0("gm higher than 1: ", .)
+
+df %>% select(ordered_qty) %>% drop_na %>% filter(ordered_qty < 0) %>% pull %>% length %>% paste0("ordered_qty negative: ", .)
+
+df %>% select(ordered_qty) %>% drop_na %>% filter(ordered_qty == 0) %>% pull %>% length %>% paste0("ordered_qty zero: ", .)
+
+df %>% select(invoiced_qty_shipped) %>% drop_na %>% filter(invoiced_qty_shipped < 0) %>% pull %>% length %>% paste0("invoiced_qty_shipped negative: ", .)
+
+df %>% select(invoiced_qty_shipped) %>% drop_na %>% filter(invoiced_qty_shipped == 0) %>% pull %>% length %>% paste0("invoiced_qty_shipped zero: ", .)
+```
+
+### When is gm missing?
+```{r}
+df %>% 
+    filter(invoiced_price == 0 | is.na(invoiced_price) | is.na(cost_of_part)) %>% pull %>% length -> num_1
+
+df %>% 
+    filter(is.na(gm)) %>% select(gm) %>% pull %>% length -> num_2
+
+print(num_1 == num_2)
+```
+
+### What item codes have ordered quantity equal to zero?
+```{r}
+df %>% filter(ordered_qty == 0) %>% select(item_code) %>% group_by(item_code) %>% tally %>% arrange(desc(n)) 
+```
+
+### Bar plot for ordered_quantity equal to zero
+```{r}
+df %>% 
+    select(item_code) %>% 
+    filter(item_code == "TRANSPORTKOSTEN" |
+           item_code == "/C" |
+           item_code == "/LTI") %>% 
+    group_by(item_code) %>% 
+    tally() %>% 
+    ggplot(aes(x=reorder(item_code, -n), y=n, fill=c("TRANSPORTKOSTEN", "/C", "/LTI"))) +
+        geom_bar(stat="identity", alpha=0.8) + 
+        scale_fill_brewer(palette="Set2") +
+        theme_bw() +
+        theme(
+            axis.text.x=element_text(angle=0, vjust=0.5, size=20),
+            plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+            text=element_text(size=30),
+            legend.position="none") + 
+        labs(x="Transport item codes", y="Number of rows", color="Item code") -> plot_x
+
+ggsave("../plots/transportation_frequencies.png", plot_x, width = 15, height = 10)
+```
+
+### What item codes have invoiced quantity shipped equal to zero?
+```{r}
+df %>% filter(invoiced_qty_shipped == 0) %>% select(item_code, customer_region) %>% group_by(item_code, customer_region) %>% tally %>% arrange(desc(n)) 
+```
+
+### Column make vs buy - merge into only make and buy
+```{r}
+df %>% select(make_vs_buy) %>% unique
+```
+
+### Frequencies of different make vs buy categories in data set
+```{r}
+df %>% select(make_vs_buy) %>% drop_na() %>% table
+```
+
+### Are there any make vs buy categories that have undefined manufacturing region? Nope
+```{r}
+df %>% select(make_vs_buy, manufacturing_region) %>% filter(is.na(manufacturing_region)) %>% table
+```
+
+### Which item codes have make vs buy category equal to "BUY - INTERPLNT TRNS" or "BUY - CUST. SUPPLIED"?
+```{r}
+df %>% select(item_code, make_vs_buy) %>% filter(make_vs_buy == "BUY - INTERPLNT TRNS")
+df %>% select(item_code, make_vs_buy) %>% filter(make_vs_buy == "BUY - CUST. SUPPLIED")
+```
+
+### Distrubution of cost of part depending on make vs buy category before and after merging
+```{r}
+df %>% filter(!is.na(make_vs_buy)) -> df_before_merge
+
+make_vs_buy <- df %>% select(make_vs_buy) %>% drop_na %>% unique %>% pull
+make <- c("MANUFACTURED", "RAW MATERIAL", "FINISHED GOODS")
+buy <- make_vs_buy[!(make_vs_buy %in% make)]
+
+df_after_merge <- df_before_merge
+levels(df_after_merge$make_vs_buy) <- c(levels(df_after_merge$make_vs_buy), "MAKE")
+df_after_merge$make_vs_buy[df_after_merge$make_vs_buy %in% buy] <- "BUY"
+df_after_merge$make_vs_buy[df_after_merge$make_vs_buy != "BUY"] <- "MAKE"
+
+df_before_merge %>% 
+    filter(cost_of_part > 0.0) %>% 
+    ggplot(aes(cost_of_part)) +
+    geom_density_ridges(aes(y=make_vs_buy), color="steelblue", fill="#3F2D91", alpha=0.5) +
+    theme_bw() +
+    theme(
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+        text=element_text(size=20)) + 
+    scale_x_log10() + 
+    labs(x="Cost of part", y="Make vs buy") -> plot_1
+
+df_after_merge %>% 
+    filter(cost_of_part > 0.0) %>% 
+    ggplot(aes(cost_of_part)) +
+    geom_density_ridges(aes(y=make_vs_buy), color="steelblue", fill="#3F2D91", alpha=0.5) +
+    theme_bw() +
+    theme(
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+        text=element_text(size=20)) + 
+    scale_x_log10() + 
+    labs(x="Cost of part", y="Make vs buy") -> plot_2
+
+ggsave("../plots/make_vs_buy_before_merge.png", plot_1, width = 15, height = 10)
+ggsave("../plots/make_vs_buy_after_merge.png", plot_2, width = 15, height = 10)
+```
+
+### Distribution of make vs buy for invoiced price variable
+```{r}
+df_after_merge %>% 
+    filter(invoiced_price > 0.0) %>% 
+    filter(filter_by_quantile(invoiced_price)) %>% 
+    ggplot(aes(invoiced_price)) +
+    geom_density_ridges(aes(y=make_vs_buy), color="black", fill="darkorange", alpha=0.5) +
+    theme_bw() +
+    theme(
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"), 
+        text=element_text(size=20)) + 
+    scale_x_log10() + 
+    labs(x="Invoiced price", y="Make vs buy") -> plot_3
+
+ggsave("../plots/make_vs_buy_invoiced_price.png", plot_3, width = 15, height = 10)
+```
+
+### Check one specific order
+```{r}
+df %>% filter(order_num == "577108")
+```
+
+### Check the invoiced_price of couple billions of dollars
+```{r}
+df[df$invoiced_price > quantile(df$invoiced_price, 0.99, na.rm=T), ] %>% top_n(1, invoiced_price)
+```
+
+### Mean invoiced_price of product family PF002
+```{r}
+df %>% select(invoiced_price, product_family) %>% filter(!is.na(invoiced_price) & product_family == "PF002") %>% filter(invoiced_price != 1089758016) %>% select(invoiced_price) %>% pull %>% mean
+```
+
+### Labeling error for order_date
+```{r}
+df %>% select(order_date) %>% filter(order_date == as.Date("9999-12-31")) %>% nrow
+```
+
+## Is there any correlation between manufatured region and the fact that item was manufactured or bought? 
+```{r}
+df_after_merge %>% 
+    select(manufacturing_region, make_vs_buy) %>% 
+    drop_na -> df_cont
+
+
+cont_tbl <- table(droplevels(df_cont$manufacturing_region), droplevels(df_cont$make_vs_buy))
+test <- chisq.test(cont_tbl)
+print(test)
+print(test$observed)
+```
+
+## Number of unique products
+```{r}
+df %>% 
+    select(item_code) %>% 
+    unique %>% 
+    pull %>% 
+    length
+```
+
+## Unique regions
+```{r}
+regions <- df %>% select(customer_region) %>% filter(!is.na(customer_region)) %>% unique %>% pull
+```
+
+## 10 most sold products everywhere, 10 most sold products by customer region
+```{r}
+df %>%
+    select(item_code) %>% 
+    filter(!is.na(item_code)) %>%
+    count(item_code, sort=T) %>% 
+    top_n(10, n) %>% kable
+
+item_freq_table_by_region <- function(region) {
+    df %>%
+        select(item_code, customer_region) %>% 
+        filter(!is.na(item_code)) %>%
+        group_by(customer_region) %>% 
+        count(item_code, customer_region, sort=T) %>% 
+        top_n(10, n) %>% 
+        filter(customer_region == region) %>% kable
+}
+
+plots <- map(regions, function(region) item_freq_table_by_region(region))
+plots[[1]]
+plots[[2]]
+plots[[3]]
+```
+
+## 10 most expensive products with their invoice price everywhere
+```{r}
+df %>%
+    select(item_code, invoiced_price) %>% 
+    filter(!is.na(item_code)) %>% 
+    top_n(10, invoiced_price) %>% 
+    arrange(desc(invoiced_price)) %>% kable
+```
+
+## Relationship between manufacturing_region, customer_region and gm
+```{r}
+gm_barplot <- function(x_variable) {
+    df %>% 
+        select({{x_variable}}, gm) %>% 
+        group_by({{x_variable}}) %>% 
+        filter(filter_by_quantile(gm)) %>% 
+        summarise(mean_gm=mean(gm, na.rm=T)) %>% 
+        ggplot(aes(x={{x_variable}}, y=mean_gm), fill={{x_variable}}) +
+        geom_bar(stat="identity", fill="forestgreen") + 
+        theme_bw()
+}
+
+gm_barplot(manufacturing_region)
+gm_barplot(customer_region)
+```
+
+```{r, warning=F}
+df %>% 
+    select(manufacturing_region, customer_region, gm) %>% 
+    filter(!is.na(manufacturing_region) & !is.na(customer_region)) %>% 
+    group_by(manufacturing_region, customer_region) %>% 
+    filter(filter_by_quantile(gm)) %>% 
+    summarise(mean_gm=mean(gm, na.rm=T)) %>% 
+    mutate(manufacturer_customer=
+               paste0(paste0(paste0("manufacturer=", manufacturing_region), "\n"),
+                      paste0("customer=", customer_region))) %>% 
+    ggplot(aes(x=manufacturer_customer, y=mean_gm), fill=manufacturer_customer) +
+    geom_bar(stat="identity", fill="forestgreen") + 
+    theme_bw() +
+    theme(axis.text.x=element_text(angle=45, vjust=0.5, size=6))
+
+df %>% 
+    select(manufacturing_region, customer_region, gm) %>% 
+    filter(!is.na(manufacturing_region) & !is.na(customer_region)) %>% 
+    group_by(manufacturing_region, customer_region) %>% 
+    filter(filter_by_quantile(gm)) %>% 
+    summarise(mean_gm=mean(gm, na.rm=T)) %>% 
+    mutate(manufacturer_customer=
+               paste0(paste0(paste0("manufacturer=", manufacturing_region), "\n"),
+                      paste0("customer=", customer_region))) %>% 
+    filter(manufacturer_customer != "manufacturer=Asia\ncustomer=Europe") -> df_filtered
+
+df_filtered %>%    
+    ggplot(aes(x=manufacturer_customer, y=mean_gm), fill=manufacturer_customer) +
+    geom_bar(stat="identity", fill="forestgreen") + 
+    theme_bw() +
+    theme(axis.text.x=element_text(angle=45, vjust=0.5, size=6)) + 
+    scale_y_continuous(breaks=seq(-4, 1, 0.2)) 
+```
+
+## Manufacturer-customer percentage relation, relationship with make_vs_buy
+```{r}
+df %>% 
+    filter(!is.na(customer_region)) %>% 
+    filter(!is.na(manufacturing_region)) %>% 
+    ggplot(aes(x=manufacturing_region, fill=customer_region)) +
+    geom_bar(position="fill", color="white") +
+    scale_fill_brewer(palette="Dark2") + 
+    theme_bw() + 
+    theme(axis.title=element_text(size = 15), 
+          legend.title=element_text(size= 15),
+          text=element_text(size=20)) +
+    labs(x="Manufacturing region", y="Proportion", fill="Customer region") -> plot_4
+
+ggsave("../plots/manufactured_customer_region_row_percentage.png", plot_4, width = 10, height = 10)
+```
+
+```{r}
+df_after_merge %>% 
+    filter(!is.na(customer_region)) %>% 
+    ggplot(aes(x=customer_region, fill=make_vs_buy)) +
+    geom_bar(position="fill", color="white") +
+    scale_fill_brewer(palette="Paired") + 
+    theme_bw() + 
+    theme(axis.title = element_text(size = 15), 
+          legend.title = element_text(size= 15),
+          text=element_text(size=20)) +
+    labs(x="Customer region", y="Proportion", fill="Make vs buy") -> plot_5
+
+ggsave("../plots/customer_region_make_vs_buy_row_percentage.png", plot_5, width = 10, height = 10)
+```
+
+## Invoice price distribution depending on manufactured_region and customer_region
+```{r}
+df %>% 
+    select(manufacturing_region, invoiced_price) %>% 
+    filter(!is.na(manufacturing_region)) %>% 
+    filter(filter_by_quantile(invoiced_price, 0.05, 0.95)) %>%  
+    ggplot(aes(x=manufacturing_region, y=invoiced_price)) + 
+    geom_boxplot(aes(fill=manufacturing_region)) +
+    # scale_y_continuous(limits = c(0, 50)) +
+    theme_bw() +
+    theme(legend.position = "bottom", legend.title=element_blank())
+
+df %>% 
+    select(customer_region, invoiced_price) %>% 
+    filter(!is.na(customer_region)) %>% 
+    filter(filter_by_quantile(invoiced_price, 0.05, 0.95)) %>%  
+    ggplot(aes(x=customer_region, y=invoiced_price)) + 
+    geom_boxplot(aes(fill=customer_region)) +
+    # scale_y_continuous(limits = c(0, 50)) +
+    theme_bw() +
+    theme(legend.position = "bottom", legend.title=element_blank())
+```
+
+## Manufacturing locations
+```{r}
+# Manufacturing region and its location codes counts
+df %>% 
+    select(manufacturing_region, manufacturing_location_code) %>% 
+    filter(!is.na(manufacturing_region)) %>% 
+    group_by(manufacturing_region) %>% 
+    count(manufacturing_region, manufacturing_location_code, sort=T) 
+
+# Customer region and manufacturing location codes counts
+df %>% 
+    select(customer_region, manufacturing_location_code) %>% 
+    filter(!is.na(customer_region)) %>% 
+    group_by(customer_region) %>% 
+    count(customer_region, manufacturing_location_code, sort=T) 
+
+# Cost of part difference depending on manufacturing location
+plot_violin_cost <- function(region) {
+    df %>%
+        filter(manufacturing_region == region) %>% 
+        select(manufacturing_location_code, cost_of_part) %>% 
+        filter(!is.na(manufacturing_location_code)) %>% 
+        filter(filter_by_quantile(cost_of_part, 0.05, 0.95)) %>%  
+        ggplot(aes(x=manufacturing_location_code, y=cost_of_part)) + 
+        geom_violin(aes(fill=manufacturing_location_code)) +
+        scale_y_continuous(limits=c(0, 250)) +
+        theme_bw() +
+        theme(legend.position="bottom", legend.title=element_blank(), plot.title=element_text(hjust=0.5)) + 
+        ggtitle(paste0("Region=", region))
+}
+
+cost_location_plots <- map(regions, function(region) plot_violin_cost(region))
+
+cost_location_plots[[1]]
+cost_location_plots[[2]]
+cost_location_plots[[3]]
+```
