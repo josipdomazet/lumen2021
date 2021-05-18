@@ -34,8 +34,8 @@ class SuperCHAID:
     SINGLETON_KEY = ("", )
 
     def __init__(self, supernode_features, features_list, dependant_variable, verbose=True,
-                 alpha_merge=0.1, max_depth=4,
-                 min_parent_node_size=800, min_child_node_size=800,
+                 alpha_merge=0.08, max_depth=3,
+                 min_parent_node_size=5000, min_child_node_size=250,
                  split_threshold=0, is_exhaustive=False):
         self.supernode_features = supernode_features
         self.features_list = features_list
@@ -197,9 +197,8 @@ class SuperCHAID:
         segment_df_dependant_variable = segment_df[self.dependant_variable].sort_values()
         _, bins = pd.qcut(segment_df_dependant_variable, q=[0, .2, .4, .6, .8, 1], retbins=True, duplicates="drop")
         bins = list(bins)
-        if impute:
+        if impute and len(bins) > 1:
             while len(bins) < 6:
-                assert len(bins) > 1, "Cannot impute GM class bound if length is less than 2."
                 max_index = 0
                 max_range = -1
                 for i in range(len(bins)-1):
