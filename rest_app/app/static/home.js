@@ -22,16 +22,18 @@ $(document).ready(() => {
 				
 				const rowCells = allRows[singleRow].split('|');
 				for (let rowCell = 0; rowCell < rowCells.length; rowCell++) {
-					const textValue = rowCells[rowCell];
-					const textValueTrimmed = textValue.substring(1, textValue.length-1);
+					let textValue = rowCells[rowCell];
+                    if(textValue.startsWith('"')) {
+                        textValue = textValue.substring(1, textValue.length-1);
+                    }
 					if (singleRow === 0) {
 						table += '<th>';
-						table += textValueTrimmed;
-						variables.push(textValueTrimmed);
+						table += textValue;
+						variables.push(textValue);
 						table += '</th>';
 					} else {
 						table += '<td>';
-						table += textValueTrimmed;
+						table += textValue;
 						table += '</td>';
 					}
 				}
