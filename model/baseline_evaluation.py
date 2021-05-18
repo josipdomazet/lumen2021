@@ -90,7 +90,7 @@ for result in kf.split(df):
     print()
     diff_perc_mean /= len(results)
     diff_distr_mean /= len(results)
-    print(f"  Percentage difference mean: {diff_perc_mean}")
+    print(f"Percentage difference mean: {diff_perc_mean}")
     print(f"Distribution difference mean: {diff_distr_mean}")
         
     print()

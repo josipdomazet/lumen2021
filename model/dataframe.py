@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 pd.set_option("display.max_columns", None)
 
-DATASET_PATH = "./LUMEN_DS.csv"
+DATASET_PATH = "../dataset/LUMEN_DS.csv"
 ENCODING = "UTF-16"
 SEPARATOR = "|"
 NA_VALUES = "NaN"
