@@ -1,26 +1,13 @@
-import webbrowser
-
 import numpy as np
 import pandas as pd
-
 pd.set_option("display.max_columns", None)
 
-
-def show_in_browser(dataframe, file_name="result.html"):
-    dataframe.to_html(file_name)
-    webbrowser.open(file_name)
-
-
-pd.DataFrame.show_in_browser = show_in_browser
-
-import numpy as np
-import pandas as pd
-
-DATASET_PATH = "./LUMEN_DS.csv"
+DATASET_PATH = "../dataset/LUMEN_DS.csv"
 ENCODING = "UTF-16"
 SEPARATOR = "|"
 NA_VALUES = "NaN"
 ROWS_LIMIT = None
+IMPUTE_COST_OF_PART = True
 
 manufacturing_region = "manufacturing_region"
 manufacturing_location_code = "manufacturing_location_code"
@@ -101,6 +88,7 @@ ALL_COLUMNS = STRING_COLUMNS + DATE_COLUMNS + NUMERIC_COLUMNS
 
 df = pd.read_csv(DATASET_PATH, sep=SEPARATOR, encoding=ENCODING, nrows=ROWS_LIMIT)
 
+
 for col in STRING_COLUMNS:
     df[col] = df[col].astype("str")
     df[col] = df[col].replace("nan", np.nan, regex=True)
@@ -109,32 +97,13 @@ for col in DATE_COLUMNS:
     df[col] = pd.to_datetime(df[col], errors="coerce")
 
 
-"""
-Insert here faster code for imputing cost_of_part
+if IMPUTE_COST_OF_PART:
+    df[cost_of_part][df[cost_of_part] == 0] = None 
+    df.sort_values(by=[item_code, invoice_date], inplace=True)
+    df[cost_of_part] = df.groupby(by=[item_code]).cost_of_part.fillna(method='ffill')
+    df[cost_of_part][df[cost_of_part].isna()] = 0
+    df[gm] = (df[invoiced_price] - df[cost_of_part]) / df[invoiced_price]
 
-indices = df.index
-problem_indices = indices[df["cost_of_part"] == 0]
-problem_indices = problem_indices.tolist()
-
-for index in problem_indices:
-    problem_value = df.loc[index, :]
-    problem_item_code = problem_value["item_code"]
-    last_value_cost_of_part = df[
-        (df["item_code"] == problem_item_code)
-        & (df["invoice_date"] <= problem_value["invoice_date"])
-        & (df["cost_of_part"] != 0)
-    ]
-    if len(last_value_cost_of_part) > 0:
-        max_invoice_date = last_value_cost_of_part["invoice_date"].max()
-        last_cost = (
-            last_value_cost_of_part.groupby(by="invoice_date").mean().reset_index()
-        )
-        df.loc[index, ["cost_of_part"]] = last_cost["cost_of_part"][
-            last_cost["invoice_date"] == max_invoice_date
-        ].values[0]
-
-df["gm"] = (df["invoiced_price"] - df["cost_of_part"]) / df["invoiced_price"]
-"""
 
 df_manufacturing = df[
     ~df.manufacturing_region.isna() & ~df.manufacturing_location_code.isna()
@@ -154,21 +123,24 @@ df[manufacturing_region] = df.apply(
     axis=1,
 )
 
-preconditions = (df.cost_of_part > 0) & (df.invoiced_price > 0) & (df.gm < 1) & (
-    df.gm > 0
-) & (df.ordered_qty > 0) & (df.invoiced_qty_shipped > 0) & (df.intercompany == "NO") & (
-    df.make_vs_buy != "RAW MATERIAL"
-) & (
-    df.make_vs_buy != "BUY - CUST. SUPPLIED"
-) & (
-    df.make_vs_buy != "BUY - INTERPLNT TRNS"
-) & (
-    df.make_vs_buy != "PURCHASED (RAW)"
-) & (
-    df.customer_id
-) > 0
+
+preconditions = (
+    (df.cost_of_part > 0)
+    & (df.invoiced_price > 0)
+    & (df.gm < 1)
+    & (df.gm > 0)
+    & (df.ordered_qty > 0)
+    & (df.invoiced_qty_shipped > 0)
+    & (df.intercompany == "NO")
+    & (df.customer_id != "-99")
+    & (df.make_vs_buy != "RAW MATERIAL")
+    & (df.make_vs_buy != "BUY - CUST. SUPPLIED")
+    & (df.make_vs_buy != "BUY - INTERPLNT TRNS")
+    & (df.make_vs_buy != "PURCHASED (RAW)")
+)
 
 df = df[preconditions].reset_index(drop=True)
+
 
 make_cols = ["MANUFACTURED", "RAW MATERIAL", "FINISHED GOODS"]
 buy_cols = [
@@ -181,7 +153,6 @@ buy_cols = [
     "PURCHASED (RAW)",
 ]
 
-
 def relabel_make_vs_buy(x):
     if x in make_cols:
         return "MAKE"
@@ -189,7 +160,6 @@ def relabel_make_vs_buy(x):
         return "BUY"
     else:
         return x
-
 
 df[make_vs_buy] = df.make_vs_buy.apply(lambda x: relabel_make_vs_buy(x))
 
@@ -200,16 +170,20 @@ def relabel_customer_region(region, group):
     else:
         return region
 
-
 df[customer_region] = df.apply(
     lambda x: relabel_customer_region(x[customer_region], x[top_customer_group]), axis=1
 )
 
-new_old_customer = "new_old_customer"
 
-df[new_old_customer] = df.customer_first_invoice_date.apply(
-    lambda x: "NEW" if x.year >= 2015 else "OLD"
-)
+new_old_customer = "new_old_customer"
+df[new_old_customer] = df.customer_first_invoice_date.apply(lambda x: "NEW" if x.year >= 2015 else "OLD")
+
+
+ordered_qty_bucket = "ordered_qty_bucket"
+bounds = [0, 10, 100, 1_000, 10_000, float("+inf")]
+labels = ['[1, 10]', '(10, 100]', '(100, 1000]', '(1000, 10000]', '(10000, inf)']
+df[ordered_qty_bucket] = pd.cut(df[ordered_qty], bounds, labels=labels)
+
 
 cols_to_remove = [
     customer_id,
@@ -236,6 +210,7 @@ cols_to_remove = [
     item_code,
     intercompany,
     product_group,
+    ordered_qty,
     invoiced_qty_shipped,
     num_of_unique_products_on_a_quote,
 ]
