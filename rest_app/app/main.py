@@ -20,7 +20,7 @@ def home():
     return send_from_directory("static", "home.html")
 
 
-@app.route("/score", methods=["POST"])
+@app.route("/scoring", methods=["POST"])
 def score():
     payload = request.json
 
