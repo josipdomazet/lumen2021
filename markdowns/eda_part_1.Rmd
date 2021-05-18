@@ -1,5 +1,6 @@
 ---
 title: "EDA - Part I"
+author: "Snoopy Quartet"
 output:
   html_document:
     df_print: paged
@@ -401,7 +402,7 @@ n_items_by_product_group_plot <-
   scale_x_continuous(minor_breaks = NULL,  labels =  scales::label_number_si()) 
 
 n_items_by_product_group_plot %>% 
-    ggsave(filename = "n_items_by_product_group.pdf", 
+    ggsave(filename = "../plots/n_items_by_product_group.pdf", 
          width = 11,
          height = 11,
          units = "cm",

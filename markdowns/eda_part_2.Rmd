@@ -1,6 +1,6 @@
 ---
 title: "EDA - Part II"
-author: "Josip Domazet"
+author: "Snoopy Quartet"
 date: "4/27/2021"
 output:
   html_document:
@@ -194,7 +194,6 @@ dat %>%
     mutate(make_vs_buy = fct_explicit_na(make_vs_buy)) %>% 
     mutate(make_vs_buy = fct_reorder(make_vs_buy, n)) %>% 
     ggplot(aes(n, make_vs_buy)) +
-    #geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
     geom_col(aes(fill = make_vs_buy),
              color = "black",
              alpha = 0.8,

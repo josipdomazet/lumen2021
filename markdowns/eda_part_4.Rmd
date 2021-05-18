@@ -1,6 +1,6 @@
 ---
 title: "EDA Part IV"
-author: "Josip Domazet"
+author: "Snoopy Quartet"
 date: "5/11/2021"
 output:
   html_document:
