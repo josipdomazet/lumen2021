@@ -169,7 +169,7 @@ def create_features(json_payload):
         "gm": gm,
     }
 
-    return pd.DataFrame(prediction_row, index=[0])
+    return pd.DataFrame(prediction_row, index=[0]), "success"
 
 
 # Test
@@ -187,5 +187,8 @@ if __name__ == "__main__":
                     "material_cost_of_part": ".0000", "labor_cost_of_part": ".0000", "overhead_cost_of_part": ".0000",
                     "gm": "0.25", "num_of_unique_products_on_a_quote": "6"}
 
-    df = create_features(json_payload)
+    df = create_features(json_payload)[0]
+    message = create_features(json_payload)[1]
     print(df)
+    print(message)
+
