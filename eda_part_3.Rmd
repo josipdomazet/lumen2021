@@ -183,7 +183,7 @@ dat %>%
     ))
   
 } %>% 
-          ggsave(filename = "images/gm_by_customer_region_ridge.pdf", 
+          ggsave(filename = "plots/gm_by_customer_region_ridge.pdf", 
          width = 6,
          height = 6,
          units = "cm",
@@ -218,7 +218,7 @@ dat %>%
     ))
   
 } %>% 
-          ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost.pdf", 
+          ggsave(filename = "plots/gm_by_customer_region_ridge_rm_zero_cost.pdf", 
          width = 6,
          height = 6,
          units = "cm",
@@ -268,7 +268,7 @@ dat %>%
   theme(text = element_text(size = 6),
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-          ggsave(filename = "images/gm_by_customer_region_ridge_rm_zero_cost_positive_gm.pdf", 
+          ggsave(filename = "plots/gm_by_customer_region_ridge_rm_zero_cost_positive_gm.pdf", 
          width = 6,
          height = 6,
          units = "cm",
@@ -295,7 +295,7 @@ dat %>%
 theme(text = element_text(size = 6),
       plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
 } %>% 
-            ggsave(filename = "images/gm_north_america_normal.pdf", 
+            ggsave(filename = "plots/gm_north_america_normal.pdf", 
          width = 5,
          height = 5,
          units = "cm",
@@ -320,7 +320,7 @@ dat %>%
 theme(text = element_text(size = 6),
       plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
 } %>% 
-            ggsave(filename = "images/gm_europe_normal.pdf", 
+            ggsave(filename = "plots/gm_europe_normal.pdf", 
          width = 5,
          height = 5,
          units = "cm",
@@ -383,7 +383,7 @@ It turns out that gross margin Asia can also look like normal distribution
       y = "Density"
     )
 } %>% 
-  ggsave(filename = "images/gm_asa_normal_remove_ic_s.pdf", 
+  ggsave(filename = "plots/gm_asa_normal_remove_ic_s.pdf", 
          width = 3,
          height = 3,
          units = "cm",
@@ -419,7 +419,7 @@ for Asia
       y = "Density"
     )
 } %>% 
-  ggsave(filename = "images/gm_asia_intercompany_vs_not_intercomapny.pdf", 
+  ggsave(filename = "plots/gm_asia_intercompany_vs_not_intercomapny.pdf", 
          width = 5,
          height = 5,
          units = "cm",
@@ -445,7 +445,7 @@ dat %>%
       y = "Count"
     )
 } %>% 
-          ggsave(filename = "images/gm_by_customer_industry_hist.pdf", 
+          ggsave(filename = "plots/gm_by_customer_industry_hist.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -472,7 +472,7 @@ Sorted boxplots
       y = "Gross margin"
     )
 } %>% 
-  ggsave(filename = "images/gm_by_customer_industry_boxplots.pdf", 
+  ggsave(filename = "plots/gm_by_customer_industry_boxplots.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -499,7 +499,7 @@ Sorted boxplots + remove intercompany
       y = "Gross margin"
     )
 } %>% 
-  ggsave(filename = "images/gm_by_customer_industry_boxplots_no_intercompany.pdf", 
+  ggsave(filename = "plots/gm_by_customer_industry_boxplots_no_intercompany.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -532,7 +532,7 @@ Sorted boxplots + facet wrap by customer region
     scale_x_reordered() +
     facet_wrap(~ customer_region, nrow = 3, scale = "free_x")
 } %>% 
-  ggsave(filename = "images/gm_by_customer_industry_boxplots_by_customer_region.pdf", 
+  ggsave(filename = "plots/gm_by_customer_industry_boxplots_by_customer_region.pdf", 
          width = 8,
          height = 10,
          units = "cm",
@@ -561,7 +561,7 @@ dat %>%
         plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")
         )
 } %>% 
-          ggsave(filename = "images/gm_by_product_family_ridge.pdf", 
+          ggsave(filename = "plots/gm_by_product_family_ridge.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -597,7 +597,7 @@ dat %>%
   theme(text = element_text(size = 6),
           plot.margin = grid::unit(c(2, 1, 2, 2), "mm")) 
   }
-          ggsave(filename = "images/revenue_invoice_line.pdf", 
+          ggsave(filename = "plots/revenue_invoice_line.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -667,7 +667,7 @@ dat %>%
     theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-      ggsave(filename = "images/gm_by_binned_shipped_qty.pdf", 
+      ggsave(filename = "plots/gm_by_binned_shipped_qty.pdf", 
       width = 8,
       height = 8,
       units = "cm",
@@ -716,7 +716,7 @@ After choosing item code
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
   } %>% 
-        ggsave(filename = "images/same_item_diff_price_qty.pdf", 
+        ggsave(filename = "plots/same_item_diff_price_qty.pdf", 
       width = 8,
       height = 8,
       units = "cm",
@@ -752,7 +752,7 @@ Chosen item!
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
   } %>% 
-        ggsave(filename = "images/lower_gm_higher_qty.pdf", 
+        ggsave(filename = "plots/lower_gm_higher_qty.pdf", 
       width = 8,
       height = 8,
       units = "cm",
@@ -823,7 +823,7 @@ Calculate profit - boxplot
    theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
   } %>% 
-          ggsave(filename = "images/higher_qty_higher_profit_with_gm.pdf", 
+          ggsave(filename = "plots/higher_qty_higher_profit_with_gm.pdf", 
       width = 8,
       height = 8,
       units = "cm",
@@ -849,7 +849,7 @@ Calculate profit - boxplot
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 1.0, 2, 2), "mm"))
   } %>% 
-        ggsave(filename = "images/same_item_diff_price_qty.pdf", 
+        ggsave(filename = "plots/same_item_diff_price_qty.pdf", 
       width = 8,
       height = 8,
       units = "cm",
@@ -887,7 +887,7 @@ dat %>%
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/gm_by_binned_price_box_all.pdf", 
+        ggsave(filename = "plots/gm_by_binned_price_box_all.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -920,7 +920,7 @@ dat %>%
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/gm_by_binned_price_ridge.pdf", 
+        ggsave(filename = "plots/gm_by_binned_price_ridge.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -997,7 +997,7 @@ dat %>%
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/cost_of_part_by_binned_price_box_all.pdf", 
+        ggsave(filename = "plots/cost_of_part_by_binned_price_box_all.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -1029,7 +1029,7 @@ dat %>%
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/gm_by_binned_price_box_positive_unit_cost.pdf", 
+        ggsave(filename = "plots/gm_by_binned_price_box_positive_unit_cost.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -1124,7 +1124,7 @@ Are customers ordering high priced items in large quantity?
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/scatter_price_quantity.pdf", 
+        ggsave(filename = "plots/scatter_price_quantity.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -1176,7 +1176,7 @@ Are customers ordering high priced items in large quantity?
   theme(text = element_text(size = 5.5),
   plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-        ggsave(filename = "images/scatter_price_quantity_special_case.pdf", 
+        ggsave(filename = "plots/scatter_price_quantity_special_case.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -1297,7 +1297,7 @@ order_line_qty_distinct %>%
    theme(text = element_text(size=6),
         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-          ggsave(filename = "images/ordered_qty_1percent_linear.pdf", 
+          ggsave(filename = "plots/ordered_qty_1percent_linear.pdf", 
          width = 8,
          height = 8,
          units = "cm",
@@ -1327,7 +1327,7 @@ order_line_qty_distinct %>%
    theme(text = element_text(size=6),
         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
 } %>% 
-          ggsave(filename = "images/ordered_qty_1percent_log.pdf", 
+          ggsave(filename = "plots/ordered_qty_1percent_log.pdf", 
          width = 8,
          height = 8,
          units = "cm",
