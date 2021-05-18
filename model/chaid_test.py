@@ -16,8 +16,10 @@ input_row[make_vs_buy] = np.nan
 print(input_row[supernode_features + features_list])
 print()
 
-segment, segment_pairs, imputed_pairs = super_tree.predict(input_row, impute=True)
-print("Imputed pairs:", imputed_pairs)
-print("Supernode pairs:", segment.supernode_pairs)
-print("Segment pairs:", segment_pairs)
-print(segment)
+result = super_tree.predict(input_row, impute=True)
+if result is not None:
+    segment, segment_pairs, imputed_pairs = result
+    print("Imputed pairs:", imputed_pairs)
+    print("Supernode pairs:", segment.supernode_pairs)
+    print("Segment pairs:", segment_pairs)
+    print(segment)
