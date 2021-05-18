@@ -62,7 +62,7 @@ $(document).ready(() => {
 				});
 				$.ajax({
 					type: "POST",
-					url: "/score",
+					url: "/scoring",
 					dataType: "json", 
 					contentType: "application/json; charset=utf-8",
 					data: JSON.stringify(payload),
