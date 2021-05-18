@@ -133,6 +133,10 @@ preconditions = (
     & (df.invoiced_qty_shipped > 0)
     & (df.intercompany == "NO")
     & (df.customer_id != "-99")
+    & (df.make_vs_buy != "RAW MATERIAL")
+    & (df.make_vs_buy != "BUY - CUST. SUPPLIED")
+    & (df.make_vs_buy != "BUY - INTERPLNT TRNS")
+    & (df.make_vs_buy != "PURCHASED (RAW)")
 )
 
 df = df[preconditions].reset_index(drop=True)
