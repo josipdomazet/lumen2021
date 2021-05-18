@@ -1,0 +1,611 @@
+---
+title: "EDA - Part II"
+author: "Snoopy Quartet"
+date: "4/27/2021"
+output:
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This markdown is supposed to be run after eda_part_1.Rmd.
+It shows various column summaries with plots.
+
+##Dataset structure 
+```{r}
+dat %>% 
+  count(order_num, invoice_num) %>% 
+  count(order_num) -> n_invoices_per_order
+```
+
+
+##Dataset inconsistencies
+```{r}
+dat %>% 
+  filter(order_num == 1259712) %>% view()
+
+# order_num == 514290 - order with 1 product, but 2 item lines  
+
+# order_num == 4164713 1 product, 10 rows 
+
+# order_num == 731696 - order with 1 product (item_code), but 4 item lines which were fully shipped with 4 separate invoices,
+# completely same thing with 100205
+
+# order_num == 100165 has 1 item_code, but 3 item lines,
+# it's like the original order had two order lines with 
+# same quantity and item_code
+
+# item_code = 700627 doesn't have cost_of_part, only invoiced_price
+# i've checked it after finding row with gross margin = 1
+# TODO: check for items which have row with gross margin = 1
+# and analyze whether they always have that gm
+
+
+
+```
+
+Check whether item line can have multiple products
+```{r}
+sample <-
+  dat %>%
+  slice_sample(n = 10000) %>% 
+  select(order_num) %>% 
+  distinct() %>% 
+  pull(order_num)
+
+order_line_multiple_products <-
+  dat %>% 
+  filter(order_num %in% sample) %>% 
+  group_by(order_line_num) %>% 
+  summarise(n_products = n_distinct(item_code))
+
+multiple_products_order <-
+  dat %>% 
+  filter(order_num %in% sample) %>% 
+  group_by(order_num) %>% 
+  summarise(n_products = n_distinct(item_code),
+            n_order_lines = n_distinct(order_line_num))
+```
+
+order_line_num = 1004214 is example of order line number where
+we have two products.
+
+##The most popular items
+TRANSPORT cost on the invoice can be the reason for 2 item codes on
+a invoice line
+
+when cleaning data, transport item is deleted since transport doesn't have
+manufacturing cost (cost_of_part == 0).
+
+```{r}
+{
+  dat %>% 
+    count(item_code) %>% 
+    mutate(item_code = fct_reorder(item_code, n)) %>% 
+    slice_max(n, n = 50, with_ties = FALSE) %>% 
+    ggplot(aes(n, item_code)) +
+    geom_col(fill = hue_pal()(2)[2], alpha = 0.6) +
+    labs(
+      x = "Number of rows",
+      y = "Item code"
+    ) +
+    theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+    ggsave(filename = "../plots/popular_items.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+We see some items are far more frequent than others.
+We know some of those items are items related to transport.
+Transport item code is identified by having invoiced_qty_shipped and
+ordered_qty equal to zero. Furthermore, cost_of_part is 0.
+It should also have manufacturing_region and manufacturing_location_code NA because
+transportation is not manufactured.
+Insight: product_family is PF000 for transportation and other 
+not really manufactured things
+### PF000
+```{r}
+dat %>% 
+  filter(product_family == "PF000") %>% 
+  count(item_code, sort = TRUE) %>% 
+  slice_max(n, n =10)
+```
+
+Check their gross margins and ordered quantities
+```{r}
+dat  %>% 
+  filter(product_family == "PF000") %>% 
+  ggplot(aes(ordered_qty)) +
+  geom_histogram() +
+  scale_x_log10()
+```
+
+```{r}
+dat  %>% 
+  filter(product_family == "PF000") %>% 
+  count(manufacturing_region)
+```
+All items with product_family == "PF000" have
+NA for manufacturing region implying they are not really manufactured.
+
+```{r}
+dat  %>% 
+  filter(product_family == "PF000") %>% 
+  count(manufacturing_location_code)
+```
+
+I see that NA and N9 are the only two locations.
+Maybe the company uses N9 for special kind of items.
+
+```{r}
+dat %>% 
+  filter(product_family == "PF000") %>% 
+  count(make_vs_buy, sort= TRUE)
+```
+Not very clear with make_vs_buy column.
+
+```{r}
+dat %>% 
+  filter(product_family == "PF000") %>% 
+  count(born_on_date, sort = TRUE)
+```
+The majority of PF000 items are without born_on_date which is another
+argument for statement that they are not really manufactured.
+
+
+Group by item codes, find *median* price and show a histogram
+```{r}
+dat %>% 
+  filter(product_family == "PF000") %>% 
+  group_by(item_code)  %>% 
+  summarise(median_price = median(invoiced_price, na.rm = TRUE),
+            n = n()) %>% 
+  ggplot(aes(median_price)) +
+  geom_histogram() +
+  scale_x_log10()
+```
+
+```{r}
+dat %>% 
+  filter(product_family == "PF000") %>% 
+  group_by(item_code)  %>% 
+  summarise(median_price = median(invoiced_price, na.rm = TRUE),
+            n = n()) %>% 
+  ggplot(aes(n, median_price)) +
+  geom_point() +
+  scale_y_log10()
+```
+
+## make vs buy
+```{r}
+{
+  dat %>% 
+    count(make_vs_buy) %>% 
+    mutate(make_vs_buy = fct_explicit_na(make_vs_buy)) %>% 
+    mutate(make_vs_buy = fct_reorder(make_vs_buy, n)) %>% 
+    ggplot(aes(n, make_vs_buy)) +
+    geom_col(aes(fill = make_vs_buy),
+             color = "black",
+             alpha = 0.8,
+             show.legend = FALSE) +
+    labs(
+      x = "Number of rows",
+      y = "Make vs buy"
+    ) +
+    theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "../plots/make_vs_buy.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+## born-on-date
+```{r}
+{
+  dat %>% 
+  select(item_code, born_on_date) %>% 
+  distinct() %>% 
+  filter(born_on_date > ymd("1950-01-01")) %>% 
+  ggplot(aes(born_on_date)) +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, bins = 50,
+                  size = .3, color = "black") +
+  labs(
+    x = "Born on date",
+    y = "Number of items"
+  ) +
+  scale_x_date(date_breaks = "4 year", date_labels = "%Y") +
+  theme(text = element_text(size=6),
+  plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+      ggsave(filename = "../plots/born_on_date.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+How many of items have two born on date?
+There should be 3191 such items.
+```{r}
+dat %>% 
+  select(item_code, born_on_date) %>% 
+  distinct() %>% 
+  group_by(item_code) %>% 
+  summarise(n = n()) %>% 
+  filter(n > 1) %>% 
+  select(item_code) %>% distinct() -> items_with_multiple
+```
+2744 such items.
+95.6 % items have only one born on date.
+
+# Price and quantity
+```{r}
+{
+  dat %>% 
+    filter(invoiced_price > 0) %>% 
+    filter(invoiced_price < 1089758016) %>% 
+    #filter(between(invoiced_price,
+    #              quantile(invoiced_price, 0.01, na.rm = TRUE),
+    #             quantile(invoiced_price, 0.99, na.rm = TRUE))
+    #    ) %>% 
+    ggplot(aes(invoiced_price)) +
+    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, 
+                    size = .25, color = "black") +
+    scale_x_continuous(labels = scales::label_number_si()) +
+    labs(
+      x = "Invoiced price",
+      y = "Number of rows"
+    ) +
+    scale_y_continuous(labels = scales::label_number_si()) +
+    theme(text = element_text(size=6),
+         plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "../plots/price_raw.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+Filter + outliers
+```{r}
+{
+  dat %>% 
+    filter(invoiced_price > 0) %>% 
+    filter(between(invoiced_price,
+                   quantile(invoiced_price, 0.001, na.rm = TRUE),
+                   quantile(invoiced_price, 0.999, na.rm = TRUE))
+    ) %>%
+    ggplot(aes(invoiced_price)) +
+    geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6, 
+                    size = .25, color = "black") +
+    scale_x_continuous(labels = scales::label_number_si()) +
+    labs(
+      x = "Invoiced price",
+      y = "Number of rows"
+    ) +
+    scale_y_continuous(labels = scales::label_number_si()) +
+    theme(text = element_text(size=6),
+          plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "../plots/price_filtered_linear.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+```{r}
+{
+  dat %>% 
+  filter(invoiced_price > 0) %>% 
+    filter(invoiced_price <  1089758016.0) %>% 
+  # filter(between(invoiced_price,
+  #              quantile(invoiced_price, 0.01, na.rm = TRUE),
+  #             quantile(invoiced_price, 0.99, na.rm = TRUE))
+  #    ) %>%
+  ggplot(aes(invoiced_price)) +
+  geom_histogram(fill = hue_pal()(2)[2], alpha = 0.6,
+                 size = .25, color = "black") +
+  scale_x_continuous(trans = scales::log10_trans(), 
+                     labels = scales::comma_format(accuracy = 0.001),
+                     breaks = c(0.001, 0.1, 1, 10, 10000)) +
+  labs(
+    x = "Invoiced price",
+    y = "Number of rows"
+  ) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  theme(text = element_text(size=6),
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "../plots/price_filtered_log.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+## Cost of part
+```{r}
+{
+  dat %>% 
+  filter(cost_of_part > 0) %>% 
+  filter(between(cost_of_part,
+               quantile(cost_of_part, 0.01, na.rm = TRUE),
+              quantile(cost_of_part, 0.99, na.rm = TRUE))
+     ) %>%
+  ggplot(aes(cost_of_part)) +
+  geom_histogram(fill =hue_pal()(2)[2], alpha = 0.75) +
+  scale_x_continuous(trans = scales::log10_trans(), labels = scales::label_number_si()) +
+  labs(
+    x = "cost_of_part",
+    y = "Number of rows"
+  ) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  theme(text = element_text(size=6),
+        plot.margin=grid::unit(c(2, 0.3, 2, 2), "mm"))
+  } %>% 
+        ggsave(filename = "../plots/cost_of_part_filtered_log.pdf", 
+         width = 6,
+         height = 6,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+## Cost of labor
+```{r}
+  dat %>% 
+  filter(labor_cost_of_part > 0) %>% 
+  filter(between(labor_cost_of_part,
+               quantile(labor_cost_of_part, 0.01, na.rm = TRUE),
+              quantile(labor_cost_of_part, 0.99, na.rm = TRUE))
+     ) %>%
+  ggplot(aes(labor_cost_of_part)) +
+  geom_histogram(fill =hue_pal()(2)[2], alpha = 0.75) +
+  labs(
+    x = "labor_cost_of_part",
+    y = "Number of rows"
+  ) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  scale_x_log10(labels = function(v) sprintf("%.3f", as.numeric(v)))
+  
+```
+
+## Material cost
+```{r}
+  dat %>% 
+  filter(material_cost_of_part > 0) %>% 
+  filter(between(material_cost_of_part,
+               quantile(material_cost_of_part, 0.01, na.rm = TRUE),
+              quantile(material_cost_of_part, 0.99, na.rm = TRUE))
+     ) %>%
+  ggplot(aes(material_cost_of_part)) +
+  geom_histogram(fill =hue_pal()(2)[2], alpha = 0.75) +
+  labs(
+    x = "material_cost_of_part",
+    y = "Number of rows"
+  ) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  scale_x_log10(labels = function(v) sprintf("%.3f", as.numeric(v)))
+```
+## Overhead
+```{r}
+  dat %>% 
+  filter(overhead_cost_of_part > 0) %>% 
+  filter(between(overhead_cost_of_part,
+               quantile(overhead_cost_of_part, 0.01, na.rm = TRUE),
+              quantile(overhead_cost_of_part, 0.99, na.rm = TRUE))
+     ) %>%
+  ggplot(aes(overhead_cost_of_part)) +
+  geom_histogram(fill =hue_pal()(2)[2], alpha = 0.75) +
+  labs(
+    x = "overhead_cost_of_part",
+    y = "Number of rows"
+  ) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  scale_x_log10(labels = function(v) sprintf("%.3f", as.numeric(v)))
+```
+
+```{r}
+{
+  dat %>% 
+  filter(if_any(ends_with("cost_of_part"), ~ . > 0)) %>% 
+  filter(if_all(ends_with("cost_of_part"), ~ between(.,
+                                                     quantile(., 0.001, na.rm=T),
+                                                     quantile(., 0.999, na.rm=T)))) %>% 
+  pivot_longer(cols = ends_with("cost_of_part"), names_to = "cost_variant",
+               values_to = "value") %>% 
+  ggplot(aes(x = value, y = cost_variant, fill = cost_variant)) + 
+  geom_density_ridges(show.legend = FALSE, alpha = 0.7) + 
+  scale_x_continuous(trans = scales::log10_trans(),
+                     labels = function(v) sprintf("%.3f", v),
+                     breaks = c(0.01, 1, 10, 1000, 10000)) +
+  labs(
+    x = "Value",
+    y = "Cost component"
+  ) + 
+    theme(text = element_text(size=6),
+         plot.margin=grid::unit(c(2, 1, 2, 2), "mm"))
+} %>% 
+        ggsave(filename = "../plots/cost_components_ridge.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+## Gross margin
+
+Bin into bins with the same number of observation
+```{r}
+dat %>% 
+  #filter(!is.na(gm)) %>% 
+  mutate(gm_bin = case_when(
+    gm < 0 ~ "negative",
+    between(gm, 0, 1) ~ "normal values",
+    between(gm, 1, +Inf) ~ "above 1",
+    TRUE ~ "NA"
+  )) %>% 
+  count(gm_bin) %>% 
+  mutate(gm_bin = factor(gm_bin, 
+                         levels = c("negative", "normal values", "above 1", "NA"))) %>% 
+  ggplot(aes(gm_bin, n, fill = gm_bin, color = gm_bin)) +
+  geom_segment(aes(xend = gm_bin, yend = 0)) +
+  geom_point(size = 2) +
+  scale_y_continuous(labels = scales::label_number_si()) +
+  labs(
+    x = "Gross margin bin",
+    y = "Number of rows"
+  ) +
+  scale_fill_manual(
+    values = c("negative" = hue_pal()(2)[1],
+               "normal values" = hue_pal()(2)[2],
+               "above 1" = hue_pal()(2)[1],
+               "NA" = hue_pal()(2)[1])
+  ) +
+    scale_color_manual(
+    values = c("negative" = hue_pal()(2)[1],
+               "normal values" = hue_pal()(2)[2],
+               "above 1" = hue_pal()(2)[1],
+               "NA" = hue_pal()(2)[1])
+  )
+```
+
+
+Histogram
+```{r}
+{
+  dat %>% 
+  #filter(invoiced_price > 0) %>% 
+  filter(between(gm, 0, 1.00)) %>% 
+  # invoiced_price == 0 is mostly for transportation
+  # but cost_of_part == 0 makes no sense
+  ggplot(aes(gm)) +
+  geom_histogram(fill =hue_pal()(2)[2], alpha = 0.75,
+                 size = .25, color = "black") +
+  labs(
+    x = "Gross margin",
+    y = "Number of rows"
+  ) +
+    theme(text = element_text(size=6),
+          plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+    ggsave(filename = "../plots/gm_between_0_1.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+It looks kinda normally distributed, except that we have 
+very big count at value of 1.00
+```{r}
+{dat %>% 
+  filter(gm == 1) %>%
+  filter(between(invoiced_price, 
+                 quantile(invoiced_price, 0.01, na.rm = TRUE),
+                 quantile(invoiced_price, 0.09, na.rm = TRUE)
+  )
+  ) %>% 
+  ggplot(aes(invoiced_price)) +
+  geom_histogram(bins = 50,
+                 fill = hue_pal()(2)[2], alpha = 0.75,
+                 size = .25, color = "black") +
+  labs(
+    x = "Invoiced price",
+    y = "Number of rows"
+  ) +
+  theme(text = element_text(size=6),
+        plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+          ggsave(filename = "../plots/rows_with_gm_1.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+
+##Ridge density of invoiced price for gross margin (5 bins)
+Boxplot/ridge density for gross margin binned into 
+bins spanning equal range
+This is with **linear scale**
+```{r}
+{
+  dat %>% 
+    filter(gm > 0 & gm < 1) %>% 
+    mutate(gm_bin = ggplot2::cut_interval(gm, n = 5)) %>% 
+    filter(invoiced_qty_shipped > 0) %>% 
+    group_by(gm_bin) %>% 
+    filter(between(invoiced_price, 
+                   quantile(invoiced_price, 0.05, na.rm = TRUE),
+                   quantile(invoiced_price, 0.95, na.rm = TRUE))) %>% 
+                   ggplot(aes(invoiced_price, gm_bin, fill = gm_bin)) +
+                     geom_density_ridges(
+                       show.legend = TRUE,
+                       alpha = 0.75) +
+                      scale_x_log10(labels = scales::label_number_si(accuracy = 0.01),
+                                    breaks = c(0.01, 0.1, 1, 10, 100, 1000, 10000)) +
+                     labs( 
+                       x = "Invoiced price",
+                       y = "Number of rows"
+                     ) +
+                     theme(text = element_text(size=6),
+                           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "../plots/prices_by_gm_bins_equal_interval_5_ridge.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+This is for **log scale**
+```{r}
+{dat %>% 
+    filter(between(gm, 0, 1)) %>% 
+    mutate(gm_bin = ggplot2::cut_interval(gm, n = 5)) %>% 
+    group_by(gm_bin) %>% 
+    filter(between(invoiced_price, 
+                   quantile(invoiced_price, 0.05, na.rm = TRUE),
+                   quantile(invoiced_price, 0.95, na.rm = TRUE))) %>% 
+                   ggplot(aes(invoiced_price, gm_bin)) +
+                   geom_boxplot(fill = hue_pal()(2)[2]) +
+    scale_x_log10(labels = scales::label_number_si()) 
+                     geom_density_ridges(fill = hue_pal()(2)[2], alpha = 0.75) +
+                     labs( 
+                       x = "Invoiced price",
+                       y = "Number of rows"
+                     ) +
+    scale_x_log10(labels = scales::label_number_si()) +
+                     theme(text = element_text(size=6),
+                           plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm"))
+} %>% 
+  ggsave(filename = "../plots/prices_by_gm_bins_equal_interval_log.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
