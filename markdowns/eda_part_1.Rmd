@@ -79,7 +79,6 @@ factor_colnames <- c("manufacturing_region",
                      "sales_channel_internal",
                      "sales_channel_external",
                      "sales_channel_grouping",
-                     "sales_channel",
                      "invoice_num",
                      "invoice_line_num",
                      "order_num",
@@ -104,7 +103,7 @@ dat <- dat %>%
          across(all_of(datetime_colnames), lubridate::date),
          across(all_of(date_colnames), lubridate::ymd))
 
-# remove some columns
+# remove unnecessary columns
 dat <- dat %>% 
   rename(sales_channel = sales_channel_internal) %>% 
   select(c(-sales_channel_grouping, -sales_channel_external, -invoiced_price_tx))

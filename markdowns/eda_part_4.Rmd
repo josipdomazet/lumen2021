@@ -525,4 +525,71 @@ Compare star and non-star quantities
          device = pdf)
 ```
 
+
+Make vs buy - before merge
+
+```{r}
+{
+  dat %>% 
+  filter(
+    gm > 0 & gm < 1
+  ) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
+  filter(!is.na(make_vs_buy)) %>% 
+  ggplot(aes(cost_of_part, make_vs_buy, fill = make_vs_buy)) +
+  geom_density_ridges(alpha = 0.8,
+                      show.legend = FALSE) +
+  scale_x_log10(labels = scales::label_number_si(0.01),
+                     breaks = c(0.01, 0.1, 1, 10, 100, 1000, 10000)) +
+          theme(text = element_text(size=5.5),
+          plot.margin = grid::unit(c(2, 1, 2, 2), "mm")) +
+    labs(x = "Cost of part",
+         y = "Make vs buy")
+
+}%>% 
+      ggsave(filename = "../plots/make_vs_buy_before_merge.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
+
+Make vs buy - after merge
+
+
+```{r}
+{
+  dat %>% 
+  filter(
+    gm > 0 & gm < 1
+  ) %>% 
+  filter(invoiced_qty_shipped > 0) %>% 
+  filter(!is.na(make_vs_buy)) %>% 
+  mutate(
+    make_vs_buy_bin = case_when(
+      make_vs_buy %in% c("MANUFACTURED", "RAW MATERIAL", "FINISHED GOODS") ~ "make",
+      TRUE ~ "buy"
+    )
+  ) %>% 
+  ggplot(aes(cost_of_part, make_vs_buy_bin, fill = make_vs_buy_bin)) +
+  geom_density_ridges(alpha = 0.8,
+                      show.legend = FALSE) +
+  scale_x_log10(labels = scales::label_number_si(0.01),
+                     breaks = c(0.01, 0.1, 1, 10, 100, 1000, 10000)) +
+          theme(text = element_text(size=5.5),
+          plot.margin = grid::unit(c(2, 1, 2, 2), "mm")) +
+    labs(x = "Cost of part",
+         y = "Make vs buy")
+
+}%>% 
+      ggsave(filename = "../plots/make_vs_buy_after_merge.pdf", 
+         width = 8,
+         height = 8,
+         units = "cm",
+         dpi = 300,
+         device = pdf)
+```
+
   
