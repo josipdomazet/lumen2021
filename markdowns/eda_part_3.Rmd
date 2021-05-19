@@ -293,11 +293,15 @@ dat %>%
                 color = hue_pal()(2)[1],
                 linetype = 2) +
 theme(text = element_text(size = 6),
-      plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
+      plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+        labs(
+      x = "Gross margin",
+      y = "Density"
+    )
 } %>% 
             ggsave(filename = "../plots/gm_north_america_normal.pdf", 
-         width = 8,
-         height = 8,
+         width = 7,
+         height = 7,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -318,11 +322,15 @@ dat %>%
                 color = hue_pal()(2)[1],
                 linetype = 2) +
 theme(text = element_text(size = 6),
-      plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) 
+      plot.margin = grid::unit(c(2, 0.3, 2, 2), "mm")) +
+        labs(
+      x = "Gross margin",
+      y = "Density"
+    )
 } %>% 
             ggsave(filename = "../plots/gm_europe_normal.pdf", 
-         width = 8,
-         height = 8,
+         width = 7,
+         height = 7,
          units = "cm",
          dpi = 300,
          device = pdf)
@@ -384,8 +392,8 @@ It turns out that gross margin Asia can also look like normal distribution
     )
 } %>% 
   ggsave(filename = "../plots/gm_asa_normal_remove_ic_s.pdf", 
-         width = 8,
-         height = 8,
+         width = 7,
+         height = 7,
          units = "cm",
          dpi = 300,
          device = pdf)
